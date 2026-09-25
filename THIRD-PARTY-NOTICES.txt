@@ -1,0 +1,53 @@
+СТОРОННИЕ КОМПОНЕНТЫ
+====================
+
+Русский
+-------
+
+PickmeTurn распространяется вместе с бинарными компонентами сторонних проектов.
+Их лицензии продолжают действовать в отношении соответствующих компонентов.
+Тексты лицензий находятся в каталоге third-party/.
+
+1. Free Turn Proxy
+   Проект: https://github.com/samosvalishe/free-turn-proxy
+   Встроенный бинарный файл: Assets/client-windows-amd64.exe
+   Лицензия: Happy Bunny License (HBL)
+   Текст лицензии: third-party/FreeTurn-Proxy-LICENSE.txt
+
+2. WireGuard for Windows
+   Проект: https://github.com/WireGuard/wireguard-windows
+   Встроенные бинарные файлы: Assets/wireguard.exe, Assets/wg.exe
+   Лицензия: MIT License
+   Текст лицензии: third-party/WireGuard-windows-LICENSE.txt
+
+PickmeTurn не заявляет право собственности на перечисленные сторонние
+бинарные компоненты. Их исходные проекты, авторские права и условия
+лицензирования остаются за соответствующими правообладателями.
+
+
+
+THIRD-PARTY COMPONENTS
+======================
+
+English
+-------
+
+PickmeTurn is distributed with binary components from third-party projects.
+Their respective licenses continue to apply to those components.
+License texts are included in the third-party/ directory.
+
+1. Free Turn Proxy
+   Project: https://github.com/samosvalishe/free-turn-proxy
+   Bundled binary: Assets/client-windows-amd64.exe
+   License: Happy Bunny License (HBL)
+   License text: third-party/FreeTurn-Proxy-LICENSE.txt
+
+2. WireGuard for Windows
+   Project: https://github.com/WireGuard/wireguard-windows
+   Bundled binaries: Assets/wireguard.exe, Assets/wg.exe
+   License: MIT License
+   License text: third-party/WireGuard-windows-LICENSE.txt
+
+PickmeTurn does not claim ownership of the third-party binaries listed above.
+Their upstream projects, copyrights, and licensing terms remain with the
+respective rights holders.

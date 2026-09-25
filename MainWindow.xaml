@@ -1,0 +1,432 @@
+<Window x:Class="FreeTurnClient.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="PickmeTurn" Icon="Assets/FreeTurn.ico" Width="560" Height="650"
+        MinWidth="500" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource Bg}"
+        Foreground="{StaticResource Text}"
+        ResizeMode="CanMinimize">
+    <Window.Resources>
+        <Style x:Key="TextBoxScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#465365"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Width="8" Background="Transparent" ClipToBounds="False">
+                            <Track x:Name="PART_Track" Margin="0,2,0,2" IsDirectionReversed="True" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ClipToBounds="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Background="Transparent" BorderThickness="0" IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb MinHeight="48" Height="48" VerticalAlignment="Center" ClipToBounds="False">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Grid Width="8" Height="48" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Ellipse x:Name="ThumbBorder" Width="6" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#465365" SnapsToDevicePixels="True"/>
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#6EA8FE"/></Trigger>
+                                                    <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#82B7FF"/></Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Background="Transparent" BorderThickness="0" IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="CaretBrush" Value="White"/>
+            <Setter Property="SelectionBrush" Value="#6EA8FE"/>
+            <Setter Property="SelectionTextBrush" Value="White"/>
+            <Setter Property="Background" Value="{StaticResource Input}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="10">
+                            <ScrollViewer x:Name="PART_ContentHost">
+                                <ScrollViewer.Resources>
+                                    <Style TargetType="ScrollBar" BasedOn="{StaticResource TextBoxScrollBarStyle}"/>
+                                </ScrollViewer.Resources>
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="11">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              RecognizesAccessKey="True"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource Panel}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Border}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text}"/>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#A94D58"/>
+            <Setter Property="BorderBrush" Value="#A94D58"/>
+        </Style>
+
+        <Style x:Key="ProfileScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Width" Value="8"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#465365"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid Width="8" Background="Transparent" ClipToBounds="False">
+                            <Track x:Name="PART_Track" Margin="0,2,0,2" IsDirectionReversed="True" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ClipToBounds="False">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageUpCommand" Background="Transparent" BorderThickness="0" IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb MinHeight="48" Height="48" VerticalAlignment="Center" ClipToBounds="False">
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Grid Width="8" Height="48" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Ellipse x:Name="ThumbBorder" Width="6" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#465365" SnapsToDevicePixels="True"/>
+                                                </Grid>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#6EA8FE"/></Trigger>
+                                                    <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#82B7FF"/></Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.PageDownCommand" Background="Transparent" BorderThickness="0" IsTabStop="False">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton"><Border Background="Transparent"/></ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ListItemStyle" TargetType="ListBoxItem">
+            <Setter Property="Padding" Value="12,10"/>
+            <Setter Property="Margin" Value="5,3"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="ItemBorder" Background="Transparent" CornerRadius="9" Padding="2">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#242A34"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="ItemBorder" Property="Background" Value="#273C59"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <!-- Main application -->
+        <Grid x:Name="HomeView" Visibility="Collapsed">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Margin="28,25,28,0">
+                <TextBlock Text="PickmeTurn" FontSize="27" FontWeight="SemiBold"/>
+                <TextBlock Foreground="{StaticResource Muted}" Margin="0,4,0,0">
+                    <Run Text="pickme works: "/>
+                    <Hyperlink NavigateUri="https://t.me/frrph" RequestNavigate="TelegramLink_RequestNavigate" Foreground="{StaticResource Accent}">
+                        <Run Text="@frrph"/>
+                    </Hyperlink>
+                </TextBlock>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Width="470">
+                <Grid Width="175" Height="175" Margin="0,0,0,2" HorizontalAlignment="Center">
+                    <Image x:Name="WaitingMascot" Source="/PickmeTurn;component/Assets/FreeTurn-blue-display.png" Width="165" Height="165"
+                           Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="1"
+                           RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                    <Image x:Name="ConnectedMascot" Source="/PickmeTurn;component/Assets/FreeTurn-connected-display.png" Width="165" Height="165"
+                           Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center" Opacity="0"
+                           RenderOptions.BitmapScalingMode="HighQuality" SnapsToDevicePixels="True"/>
+                </Grid>
+                <TextBlock x:Name="StatusText" Text="Ожидание" FontSize="27" FontWeight="SemiBold"
+                           HorizontalAlignment="Center" TextAlignment="Center"/>
+                <TextBlock x:Name="DetailText" Text="Выберите профиль и подключитесь"
+                           Foreground="{StaticResource Muted}" Margin="0,10,0,0"
+                           TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="IpText" Margin="0,12,0,0" Foreground="{StaticResource Muted}"
+                           TextAlignment="Center"/>
+                <Button x:Name="ConnectButton" Width="285" Height="62" Margin="0,24,0,0"
+                        Content="Подключиться" Click="ConnectButton_Click" FontSize="16" FontWeight="SemiBold"/>
+            </StackPanel>
+
+            <Grid Grid.Row="2" Margin="18,0,18,18">
+                <Border Background="{StaticResource Panel}" BorderBrush="{StaticResource Border}"
+                        BorderThickness="1" CornerRadius="14" Padding="14,11">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="Профиль" Foreground="{StaticResource Muted}" FontSize="12"/>
+                            <TextBlock x:Name="CurrentProfileText" Text="—" FontSize="15" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                        </StackPanel>
+                        <Button x:Name="ProfilesToggleButton" Grid.Column="1" Content="Профили"
+                                Width="105" Height="38" Click="ProfilesToggle_Click"
+                                Style="{StaticResource SecondaryButton}"/>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- First-run setup wizard -->
+        <Grid x:Name="SetupView" Background="{StaticResource Bg}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Margin="28,25,28,0">
+                <TextBlock Text="PickmeTurn" FontSize="27" FontWeight="SemiBold"/>
+                <TextBlock Foreground="{StaticResource Muted}" Margin="0,4,0,0">
+                    <Run Text="pickme works: "/>
+                    <Hyperlink NavigateUri="https://t.me/frrph" RequestNavigate="TelegramLink_RequestNavigate" Foreground="{StaticResource Accent}">
+                        <Run Text="@frrph"/>
+                    </Hyperlink>
+                </TextBlock>
+            </StackPanel>
+
+            <Grid Grid.Row="1" Margin="28,22,28,10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Text="Настройка подключения" FontSize="23" FontWeight="SemiBold" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="SetupSubtitle" Text="Добавим профиль за несколько шагов"
+                               Foreground="{StaticResource Muted}" Margin="0,7,0,0" HorizontalAlignment="Center"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1" Margin="0,22,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <Border x:Name="StepDot1" Width="28" Height="28" CornerRadius="14" Background="{StaticResource Accent}">
+                            <TextBlock Text="1" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                        </Border>
+                        <TextBlock Text="Профиль" FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <Border x:Name="StepDot2" Width="28" Height="28" CornerRadius="14" Background="{StaticResource Border}">
+                            <TextBlock Text="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource Muted}"/>
+                        </Border>
+                        <TextBlock Text="VK Call" FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                        <Border x:Name="StepDot3" Width="28" Height="28" CornerRadius="14" Background="{StaticResource Border}">
+                            <TextBlock Text="3" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="SemiBold" Foreground="{StaticResource Muted}"/>
+                        </Border>
+                        <TextBlock Text="Готово" FontSize="11" Foreground="{StaticResource Muted}" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <Border Grid.Row="2" Margin="0,22,0,0" Background="{StaticResource Panel}"
+                        BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="16" Padding="22">
+                    <Grid>
+                        <!-- Step 1 -->
+                        <StackPanel x:Name="SetupStep1">
+                            <TextBlock Text="Добавьте профиль" FontSize="19" FontWeight="SemiBold"/>
+                            <TextBlock Text="Вставьте ссылку freeturn:// из вашей конфигурации."
+                                       Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,7,0,18"/>
+                            <TextBlock Text="Профиль FreeTurn" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBox x:Name="SetupLinkBox" Height="112" Margin="0,7,0,0"
+                                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                     TextChanged="SetupLinkBox_TextChanged"/>
+                            <TextBlock x:Name="SetupProfileHint" Text="Ссылка будет сохранена на этом компьютере."
+                                       Foreground="{StaticResource Muted}" FontSize="11" Margin="0,8,0,0"/>
+                        </StackPanel>
+
+                        <!-- Step 2 -->
+                        <StackPanel x:Name="SetupStep2" Visibility="Collapsed">
+                            <TextBlock Text="Добавьте ссылку VK" FontSize="19" FontWeight="SemiBold"/>
+                            <TextBlock Text="Она нужна FreeTurn для подключения через VK Call."
+                                       Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,7,0,18"/>
+                            <TextBlock Text="Ссылка на звонок VK" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBox x:Name="SetupCallLinkBox" Height="54" Margin="0,7,0,0"
+                                     TextChanged="SetupCallLinkBox_TextChanged"/>
+                            <TextBlock Text="Если ссылка уже встроена в профиль, мы подставим её автоматически."
+                                       Foreground="{StaticResource Muted}" FontSize="11" TextWrapping="Wrap" Margin="0,8,0,0"/>
+                        </StackPanel>
+
+                        <!-- Step 3 -->
+                        <StackPanel x:Name="SetupStep3" Visibility="Collapsed">
+                            <TextBlock Text="Профиль готов" FontSize="19" FontWeight="SemiBold"/>
+                            <TextBlock Text="Проверьте данные — после сохранения профиль появится на главном экране."
+                                       Foreground="{StaticResource Muted}" TextWrapping="Wrap" Margin="0,7,0,18"/>
+                            <Border Background="{StaticResource Input}" BorderBrush="{StaticResource Border}"
+                                    BorderThickness="1" CornerRadius="10" Padding="14">
+                                <StackPanel>
+                                    <TextBlock Text="Название" Foreground="{StaticResource Muted}" FontSize="11"/>
+                                    <TextBlock x:Name="SetupSummaryName" Text="—" FontSize="16" FontWeight="SemiBold" Margin="0,3,0,12"/>
+                                    <TextBlock Text="VK Call" Foreground="{StaticResource Muted}" FontSize="11"/>
+                                    <TextBlock x:Name="SetupSummaryCall" Text="—" TextTrimming="CharacterEllipsis" Margin="0,3,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="2" Margin="28,0,28,24">
+                <Button x:Name="SetupBackButton" Content="Назад" Width="110" Height="42"
+                        HorizontalAlignment="Left" Style="{StaticResource SecondaryButton}"
+                        Click="SetupBack_Click" Visibility="Collapsed"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button x:Name="SetupNextButton" Content="Продолжить" Width="145" Height="42" Click="SetupNext_Click"/>
+                    <Button x:Name="SetupSaveButton" Content="Сохранить профиль" Width="165" Height="42"
+                            Click="SetupSave_Click" Visibility="Collapsed"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- Existing-profile bottom drawer -->
+        <Grid x:Name="DrawerLayer" Visibility="Collapsed" Background="#55000000" MouseDown="DrawerLayer_MouseDown">
+            <Border x:Name="ProfilesDrawer" VerticalAlignment="Bottom" Background="{StaticResource Panel}"
+                    BorderBrush="{StaticResource Border}" BorderThickness="1,1,1,0"
+                    CornerRadius="18,18,0,0" Height="360" Padding="20"
+                    Margin="10,0,10,0" RenderTransformOrigin="0.5,1">
+                <Border.RenderTransform>
+                    <TranslateTransform x:Name="DrawerTransform" Y="380"/>
+                </Border.RenderTransform>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid>
+                        <StackPanel>
+                            <TextBlock x:Name="ProfileCountText" Text="Профили" FontWeight="SemiBold" FontSize="17"/>
+                            <TextBlock Text="Выберите профиль или измените его параметры"
+                                       Foreground="{StaticResource Muted}" FontSize="11" Margin="0,4,0,0"/>
+                        </StackPanel>
+                        <Button Content="+ Добавить" Width="105" Height="34" HorizontalAlignment="Right"
+                                Click="AddProfile_Click"/>
+                    </Grid>
+
+                    <Grid Grid.Row="1" Margin="0,16,0,12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="155"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="{StaticResource Input}"
+                                BorderBrush="{StaticResource Border}" BorderThickness="1" CornerRadius="10"
+                                Padding="0">
+                            <ListBox x:Name="ProfilesList" Background="Transparent"
+                                     BorderThickness="0" Foreground="{StaticResource Text}"
+                                     ItemContainerStyle="{StaticResource ListItemStyle}"
+                                     SelectionChanged="ProfilesList_SelectionChanged">
+                                <ListBox.Resources>
+                                    <Style TargetType="ScrollBar" BasedOn="{StaticResource ProfileScrollBarStyle}"/>
+                                </ListBox.Resources>
+                            </ListBox>
+                        </Border>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Профиль FreeTurn" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBox x:Name="LinkBox" Height="72" Margin="0,7,0,12"
+                                     AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"
+                                     TextChanged="LinkBox_TextChanged"/>
+                            <TextBlock Text="Ссылка на звонок VK" FontSize="12" FontWeight="SemiBold"/>
+                            <TextBox x:Name="CallLinkBox" Height="40" Margin="0,7,0,0"
+                                     TextChanged="CallLinkBox_TextChanged"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button Content="Удалить" Width="90" Height="36" Margin="0,0,8,0"
+                                Click="DeleteProfile_Click" Style="{StaticResource DangerButton}"/>
+                        <Button Content="Сохранить" Width="105" Height="36" Click="SaveProfile_Click"/>
+                        <Button Content="Закрыть" Width="90" Height="36" Margin="8,0,0,0"
+                                Click="ProfilesToggle_Click" Style="{StaticResource SecondaryButton}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

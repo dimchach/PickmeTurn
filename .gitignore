@@ -1,0 +1,31 @@
+# Visual Studio / .NET
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+bin/
+obj/
+
+# Build output
+publish/
+installer-output/
+
+# Runtime / user data
+Runtime/
+profiles.dat
+*.log
+
+# Signing material — NEVER commit private keys or certificates
+*.pfx
+*.p12
+*.cer
+*.crt
+*.pem
+*.key
+*.pvk
+*.snk
+
+# OS/editor files
+.DS_Store
+Thumbs.db

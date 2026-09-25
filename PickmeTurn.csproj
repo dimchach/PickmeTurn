@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <ApplicationIcon>Assets\FreeTurn.ico</ApplicationIcon>
+    <AssemblyName>PickmeTurn</AssemblyName>
+    <RootNamespace>FreeTurnClient</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Platforms>x64</Platforms>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <InformationalVersion>1.0.0</InformationalVersion>
+    <Product>PickmeTurn</Product>
+    <Company>PickmeTurn</Company>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="Assets\FreeTurn.ico" />
+    <Resource Include="Assets\FreeTurn-blue-display.png" />
+    <Resource Include="Assets\FreeTurn-connected-display.png" />
+    <Resource Include="Assets\FreeTurn-connected.ico" />
+    <EmbeddedResource Include="Assets\client-windows-amd64.exe" />
+    <EmbeddedResource Include="Assets\wireguard.exe" />
+    <EmbeddedResource Include="Assets\wg.exe" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="8.0.0" />
+  </ItemGroup>
+</Project>

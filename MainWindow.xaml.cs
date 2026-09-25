@@ -32,12 +32,12 @@ public partial class MainWindow : Window
     private string? _configPath;
     private readonly StringBuilder _freeTurnLog = new();
     private bool _busy;
-    private string? _autoFilledCallLink;
     private string _profileName = "";
     private readonly List<string> _temporaryDirectRoutes = new();
     private int _activeTurnAllocations;
     private int _localRelayPort = 9000;
     private TaskCompletionSource<bool> _routeReadyField = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private CancellationTokenSource? _sessionMonitorCts;
     private readonly SemaphoreSlim _disconnectLock = new(1, 1);
     private readonly string _profilesPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -781,12 +781,14 @@ public partial class MainWindow : Window
             // Put option/value pairs before the positional freeturn:// URI.
             // This is important for clients/parsers that stop processing flags
             // after the first positional argument.
-            // v28: force FreeTurn into the manual CAPTCHA path. The bundled
-            // 4.0.0 client currently reports `captcha pow args not found`
-            // during its automatic solver path. We want to remove that
-            // variable and test VK authentication directly after a manual
-            // CAPTCHA confirmation.
-            psi.ArgumentList.Add("-manual-captcha");
+            // v1.1: let FreeTurn use its native automatic CAPTCHA solver.
+            // The bundled core is updated to 4.0.1, which contains the
+            // current CAPTCHA parsing fix. If automatic solving cannot
+            // complete, FreeTurn falls back to its manual browser flow.
+            // We intentionally do NOT pass -manual-captcha here.
+            // Desktop is explicit so the auth persona matches Windows.
+            psi.ArgumentList.Add("-platform");
+            psi.ArgumentList.Add("desktop");
             psi.ArgumentList.Add("-link");
             psi.ArgumentList.Add(callLink);
             // Pass the VPS peer explicitly as well as through freeturn://.
@@ -857,6 +859,11 @@ public partial class MainWindow : Window
             ConnectButton.Content = "Отключиться";
             ConnectButton.IsEnabled = true;
             _busy = false;
+
+            // Keep the UI session-aware without treating a later CAPTCHA
+            // message as a disconnect. The FreeTurn core owns relay/session
+            // recovery; PickmeTurn only reacts if the core process itself dies.
+            StartFreeTurnSessionMonitor();
         }
         catch (Exception ex)
         {
@@ -881,6 +888,10 @@ public partial class MainWindow : Window
         await _disconnectLock.WaitAsync();
         try
         {
+            _sessionMonitorCts?.Cancel();
+            _sessionMonitorCts?.Dispose();
+            _sessionMonitorCts = null;
+
             // Stop the WireGuard tunnel first. This removes the VPN path before
             // we terminate FreeTurn, so the relay never remains half-attached to
             // a dead tunnel.
@@ -1457,23 +1468,34 @@ public partial class MainWindow : Window
             if (log.Contains("Ensuring route to", StringComparison.OrdinalIgnoreCase))
                 routeSeen = true;
 
-            // Manual VK captcha is a normal part of the relay lifecycle.
-            // Do NOT fail the connection attempt while the browser is waiting
-            // for the user to confirm it.
-            var needsCaptcha =
-                log.Contains("ACTION REQUIRED: manual captcha solving needed",
-                    StringComparison.OrdinalIgnoreCase) ||
-                log.Contains("Triggering manual captcha fallback",
-                    StringComparison.OrdinalIgnoreCase) ||
-                log.Contains("Solving VK Smart Captcha automatically",
-                    StringComparison.OrdinalIgnoreCase);
+            // CAPTCHA is part of the relay lifecycle. During initial
+            // connection, automatic solving is preferred and manual browser
+            // fallback is only shown when FreeTurn explicitly asks for it.
+            var manualCaptchaRequired = log.Contains(
+                "ACTION REQUIRED: manual captcha solving needed",
+                StringComparison.OrdinalIgnoreCase);
+            var manualCaptchaFallback = log.Contains(
+                "Triggering manual captcha fallback",
+                StringComparison.OrdinalIgnoreCase);
+            var automaticCaptcha = log.Contains(
+                "Solving VK Smart Captcha automatically",
+                StringComparison.OrdinalIgnoreCase);
 
-            if (needsCaptcha && !captchaShown)
+            if ((manualCaptchaRequired || manualCaptchaFallback) && !captchaShown)
             {
                 captchaShown = true;
                 SetStatus(
                     $"Подключение — {_profileName}",
-                    "Подтвердите капчу VK в открывшемся окне",
+                    manualCaptchaFallback
+                        ? "Автокапча не прошла • подтверждите капчу VK в браузере"
+                        : "Подтвердите капчу VK в открывшемся окне",
+                    StatusState.Connecting);
+            }
+            else if (automaticCaptcha && !captchaShown)
+            {
+                SetStatus(
+                    $"Подключение — {_profileName}",
+                    "FreeTurn автоматически проходит капчу VK",
                     StatusState.Connecting);
             }
 
@@ -1481,7 +1503,7 @@ public partial class MainWindow : Window
             {
                 SetStatus(
                     $"Подключение — {_profileName}",
-                    "Капча подтверждена • устанавливаем relay VK",
+                    "Капча пройдена • устанавливаем relay VK",
                     StatusState.Connecting);
             }
 
@@ -1900,6 +1922,62 @@ public partial class MainWindow : Window
             await Task.Delay(300);
         }
         throw new TimeoutException("WireGuard tunnel service не запустился.");
+    }
+
+    private void StartFreeTurnSessionMonitor()
+    {
+        _sessionMonitorCts?.Cancel();
+        _sessionMonitorCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _sessionMonitorCts = cts;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (!cts.Token.IsCancellationRequested)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(2), cts.Token);
+
+                    var relay = _freeTurn;
+                    if (relay == null || relay.HasExited)
+                    {
+                        if (cts.Token.IsCancellationRequested)
+                            return;
+
+                        var dispatcherOperation = Dispatcher.InvokeAsync(async () =>
+                        {
+                            if (!_busy && _tunnelName == null)
+                                return;
+
+                            SetStatus(
+                                $"Ошибка — {_profileName}",
+                                "FreeTurn завершился во время активного подключения.",
+                                StatusState.Error);
+                            ConnectButton.Content = "Подключиться";
+                            _busy = false;
+                            await DisconnectAsync(updateUi: false, forceFreeTurnCleanup: true);
+                            SetStatus(
+                                $"Ошибка — {_profileName}",
+                                "Relay FreeTurn завершился. Подключитесь повторно.",
+                                StatusState.Error);
+                            UpdateConnectButtonState();
+                        });
+                        await dispatcherOperation.Task.Unwrap();
+                        return;
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch
+            {
+                // Monitoring must never become a reason to tear down a healthy
+                // tunnel. The FreeTurn core remains the authority for relay
+                // recovery and liveness.
+            }
+        }, cts.Token);
     }
 
     private async Task CheckExternalIpAsync()

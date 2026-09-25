@@ -165,3 +165,13 @@ https://github.com/WireGuard/wireguard-windows
 ### License
 
 PickmeTurn's own source code is released under the MIT License. The full text is available in `LICENSE`. Third-party components retain their respective licenses.
+
+## 1.1.0
+
+PickmeTurn 1.1.0 updates the bundled FreeTurn Windows core to 4.0.1 and enables the core's native automatic CAPTCHA flow with browser-based manual fallback when required. The application explicitly uses the desktop authentication platform.
+
+The existing PickmeTurn UI, profile storage, DPAPI protection, WireGuard integration, tray behavior, and cleanup flow are retained.
+
+The build script downloads the pinned FreeTurn 4.0.1 Windows binary from the upstream GitHub release and verifies its SHA-256 against the published checksums.txt before embedding it into PickmeTurn.
+
+See RELEASE-NOTES-1.1.0.md for the release details.

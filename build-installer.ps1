@@ -12,17 +12,10 @@ if (-not (Test-Path (Join-Path $publish "PickmeTurn.exe"))) {
     throw "publish\PickmeTurn.exe was not produced."
 }
 
-$isccPath = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
-if (-not $isccPath) {
-    $candidates = @(
-        "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
-        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
-        "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
-        "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
-        "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe"
-    ) | Where-Object { $_ -and (Test-Path $_) }
-    if ($candidates.Count -gt 0) { $isccPath = $candidates[0] }
+$isccPath = Join-Path $env:LOCALAPPDATA "Programs\Inno Setup 6\ISCC.exe"
+
+if (-not (Test-Path $isccPath)) {
+    throw "Inno Setup compiler not found: $isccPath"
 }
 
 if (-not $isccPath) {

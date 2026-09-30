@@ -18,8 +18,11 @@ using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Threading.Tasks;
+using System.Runtime.InteropServices;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Navigation;
+using System.Windows.Threading;
 
 namespace FreeTurnClient;
 
@@ -34,6 +37,7 @@ public partial class MainWindow : Window
     private bool _busy;
     private string _profileName = "";
     private readonly List<string> _temporaryDirectRoutes = new();
+    private const int MaxTurnStreams = 12;
     private int _activeTurnAllocations;
     private int _localRelayPort = 9000;
     private TaskCompletionSource<bool> _routeReadyField = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -46,6 +50,12 @@ public partial class MainWindow : Window
     private Guid? _selectedProfileId;
     private bool _profileEditorUpdating;
     private bool _allowWindowClose;
+    private readonly DispatcherTimer _diagnosticsTimer;
+    private bool _diagnosticsRefreshing;
+    private Grid? _activeUtilityView;
+    private Grid? _returnView;
+    private bool _checkingUpdate;
+    private const string UpdateRepository = "dimchach/PickmeTurn";
     private int _setupStep = 1;
     private bool _drawerOpen;
     private System.Windows.Forms.NotifyIcon? _trayIcon;
@@ -57,6 +67,16 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+
+        _diagnosticsTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(2)
+        };
+        _diagnosticsTimer.Tick += DiagnosticsTimer_Tick;
+
+        var appVersion = Assembly.GetExecutingAssembly().GetName().Version;
+        InfoVersionText.Text = $"Версия {appVersion?.ToString(3) ?? "неизвестна"}";
+
         InitializeTray();
         MigrateLegacyStorage();
         LoadProfiles();
@@ -239,6 +259,372 @@ public partial class MainWindow : Window
 
     private void WindowExit_Click(object sender, RoutedEventArgs e) => _ = ExitApplicationAsync();
 
+    private async void InfoButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ShowUtilityViewAsync(InfoView);
+    }
+
+    private async void DiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        await ShowUtilityViewAsync(DiagnosticsView);
+    }
+
+    private async Task ShowUtilityViewAsync(Grid view)
+    {
+        if (_drawerOpen)
+            ShowProfilesDrawer(false);
+
+        _returnView = HomeView.Visibility == Visibility.Visible
+            ? HomeView
+            : SetupView.Visibility == Visibility.Visible
+                ? SetupView
+                : null;
+
+        HomeView.Visibility = Visibility.Collapsed;
+        SetupView.Visibility = Visibility.Collapsed;
+        DiagnosticsView.Visibility = Visibility.Collapsed;
+        InfoView.Visibility = Visibility.Collapsed;
+
+        _activeUtilityView = view;
+        view.Opacity = 0;
+        view.Visibility = Visibility.Visible;
+
+        var fade = new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140));
+        view.BeginAnimation(System.Windows.UIElement.OpacityProperty, fade);
+
+        if (view == DiagnosticsView)
+        {
+            _diagnosticsTimer.Start();
+            await RefreshDiagnosticsViewAsync();
+        }
+        else if (view == InfoView)
+        {
+            UpdateStatusText.Visibility = Visibility.Collapsed;
+            UpdateStatusText.Text = "";
+            CheckUpdateButton.IsEnabled = true;
+            CheckUpdateButton.Content = "Проверить обновления";
+            _checkingUpdate = false;
+        }
+    }
+
+    private async void BackFromUtilityView_Click(object sender, RoutedEventArgs e)
+    {
+        await ReturnFromUtilityViewAsync();
+    }
+
+    private async Task ReturnFromUtilityViewAsync()
+    {
+        _diagnosticsTimer.Stop();
+
+        var current = _activeUtilityView;
+        if (current != null)
+        {
+            var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(1, 0, TimeSpan.FromMilliseconds(100));
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            fadeOut.Completed += (_, _) => tcs.TrySetResult(true);
+            current.BeginAnimation(System.Windows.UIElement.OpacityProperty, fadeOut);
+            await tcs.Task;
+            current.Visibility = Visibility.Collapsed;
+            current.Opacity = 1;
+        }
+
+        var target = _returnView ?? HomeView;
+        _activeUtilityView = null;
+        _returnView = null;
+
+        if (target == SetupView)
+        {
+            SetupView.Visibility = Visibility.Visible;
+            SetupView.Opacity = 0;
+            SetupView.BeginAnimation(System.Windows.UIElement.OpacityProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140)));
+        }
+        else
+        {
+            HomeView.Visibility = Visibility.Visible;
+            HomeView.Opacity = 0;
+            HomeView.BeginAnimation(System.Windows.UIElement.OpacityProperty,
+                new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(140)));
+        }
+    }
+
+    private async void DiagnosticsTimer_Tick(object? sender, EventArgs e)
+    {
+        await RefreshDiagnosticsViewAsync();
+    }
+
+    private async Task RefreshDiagnosticsViewAsync()
+    {
+        if (_diagnosticsRefreshing || DiagnosticsView.Visibility != Visibility.Visible)
+            return;
+
+        _diagnosticsRefreshing = true;
+        try
+        {
+            var scrollViewer = FindVisualChild<ScrollViewer>(DiagnosticsTextBox);
+            var previousOffset = scrollViewer?.VerticalOffset ?? 0;
+            var wasAtBottom = scrollViewer == null ||
+                              scrollViewer.ScrollableHeight - scrollViewer.VerticalOffset <= 4;
+
+            var snapshot = await BuildDiagnosticsSnapshotAsync();
+            DiagnosticsTextBox.Text = snapshot;
+
+            // Keep the user's current position while reading the log. Only follow
+            // new log lines automatically when the user was already at the bottom.
+            await Dispatcher.InvokeAsync(() =>
+            {
+                var viewer = FindVisualChild<ScrollViewer>(DiagnosticsTextBox);
+                if (viewer == null)
+                    return;
+
+                if (wasAtBottom)
+                    DiagnosticsTextBox.ScrollToEnd();
+                else
+                    viewer.ScrollToVerticalOffset(Math.Min(previousOffset, viewer.ScrollableHeight));
+            }, DispatcherPriority.Background);
+        }
+        catch (Exception ex)
+        {
+            DiagnosticsTextBox.Text = ex.ToString();
+        }
+        finally
+        {
+            _diagnosticsRefreshing = false;
+        }
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        if (parent == null)
+            return null;
+
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+                return typedChild;
+
+            var result = FindVisualChild<T>(child);
+            if (result != null)
+                return result;
+        }
+
+        return null;
+    }
+
+    internal Task ExitForUpdateAsync() => ExitApplicationAsync();
+
+    private void Link_RequestNavigate(object sender, RequestNavigateEventArgs e)
+    {
+        OpenExternalUrl(e.Uri.AbsoluteUri);
+        e.Handled = true;
+    }
+
+    private async void CheckUpdateButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_checkingUpdate) return;
+
+        _checkingUpdate = true;
+        CheckUpdateButton.IsEnabled = false;
+        CheckUpdateButton.Content = "Проверяю…";
+        UpdateStatusText.Visibility = Visibility.Visible;
+        UpdateStatusText.Text = "";
+
+        try
+        {
+            using var http = CreateUpdateHttpClient();
+            var json = await http.GetStringAsync($"https://api.github.com/repos/{UpdateRepository}/releases/latest");
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            var tag = root.GetProperty("tag_name").GetString()?.Trim() ?? "";
+            var releaseName = root.GetProperty("name").GetString() ?? tag;
+            var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0, 0);
+            var latestText = tag.TrimStart('v', 'V');
+
+            if (!Version.TryParse(latestText, out var latest))
+            {
+                UpdateStatusText.Text = "Не удалось определить версию последнего релиза.";
+                return;
+            }
+
+            if (latest <= current)
+            {
+                UpdateStatusText.Text = $"Установлена актуальная версия.";
+                return;
+            }
+
+            var asset = FindInstallerAsset(root, latestText);
+            if (asset is null)
+            {
+                UpdateStatusText.Text = $"Доступна версия {latest.ToString(3)}, но установщик не найден. Открою страницу релиза.";
+                if (MessageBox.Show(this, "Установщик релиза не найден. Открыть страницу GitHub?",
+                    "Обновление", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+                    OpenExternalUrl($"https://github.com/{UpdateRepository}/releases/tag/{tag}");
+                return;
+            }
+
+            var checksum = asset.Value.digest ??
+                ExtractSha256(root.GetProperty("body").GetString() ?? "", asset.Value.name);
+
+            var answer = MessageBox.Show(this,
+                $"Доступно обновление {releaseName} ({latest.ToString(3)}).\n\n" +
+                "PickmeTurn скачает официальный установщик GitHub, проверит SHA-256 и запустит обновление. " +
+                "Приложение будет закрыто.\n\nПродолжить?",
+                "Доступно обновление", MessageBoxButton.YesNo, MessageBoxImage.Information);
+
+            if (answer != MessageBoxResult.Yes) return;
+
+            CheckUpdateButton.Content = "Скачиваю…";
+            var installer = await DownloadAndVerifyUpdateAsync(http, asset.Value.url, checksum, latestText);
+            UpdateStatusText.Text = "Установщик проверен. Перезапускаю приложение после обновления…";
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = installer,
+                UseShellExecute = true,
+                Verb = "runas"
+            });
+
+            await ExitForUpdateAsync();
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText.Text = "Не удалось проверить обновления автоматически.";
+            if (MessageBox.Show(this,
+                $"Ошибка обновления:\n{ex.Message}\n\nОткрыть страницу релизов GitHub?",
+                "Обновление", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                OpenExternalUrl($"https://github.com/{UpdateRepository}/releases");
+        }
+        finally
+        {
+            _checkingUpdate = false;
+            CheckUpdateButton.IsEnabled = true;
+            CheckUpdateButton.Content = "Проверить обновления";
+        }
+    }
+
+    private static HttpClient CreateUpdateHttpClient()
+    {
+        var http = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+        http.DefaultRequestHeaders.UserAgent.ParseAdd(
+            $"PickmeTurn-UpdateChecker/{Assembly.GetExecutingAssembly().GetName().Version}");
+        http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+        return http;
+    }
+
+    private static (string name, string url, string? digest)? FindInstallerAsset(JsonElement root, string version)
+    {
+        var expected = $"PickmeTurn-Setup-{version}.exe";
+        if (!root.TryGetProperty("assets", out var assets)) return null;
+
+        foreach (var item in assets.EnumerateArray())
+        {
+            var name = item.GetProperty("name").GetString();
+            if (!string.Equals(name, expected, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var digest = item.TryGetProperty("digest", out var digestElement)
+                ? digestElement.GetString()
+                : null;
+
+            if (!string.IsNullOrWhiteSpace(digest) &&
+                digest.StartsWith("sha256:", StringComparison.OrdinalIgnoreCase))
+                digest = digest[7..];
+
+            return (name!, item.GetProperty("browser_download_url").GetString()!, digest);
+        }
+
+        return null;
+    }
+
+    private static string? ExtractSha256(string body, string assetName)
+    {
+        var escaped = Regex.Escape(assetName);
+        var match = Regex.Match(body, $"(?is){escaped}.{{0,250}}?([0-9a-f]{{64}})");
+        return match.Success ? match.Groups[1].Value.ToLowerInvariant() : null;
+    }
+
+    private static async Task<string> DownloadAndVerifyUpdateAsync(
+        HttpClient http, string url, string? expectedHash, string version)
+    {
+        if (string.IsNullOrWhiteSpace(expectedHash))
+            throw new InvalidOperationException(
+                "В релизе отсутствует SHA-256 установщика; автоматическое обновление остановлено.");
+
+        var path = Path.Combine(Path.GetTempPath(),
+            $"PickmeTurn-Setup-{version}-{Guid.NewGuid():N}.exe");
+
+        using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+
+        await using (var input = await response.Content.ReadAsStreamAsync())
+        await using (var output = new FileStream(path, FileMode.CreateNew, FileAccess.Write,
+                     FileShare.None, 1024 * 64, useAsync: true))
+        {
+            await input.CopyToAsync(output);
+        }
+
+        await using var hashStream = File.OpenRead(path);
+        var actual = Convert.ToHexString(await SHA256.HashDataAsync(hashStream)).ToLowerInvariant();
+
+        if (!string.Equals(actual, expectedHash, StringComparison.OrdinalIgnoreCase))
+        {
+            try { File.Delete(path); } catch { }
+            throw new InvalidOperationException(
+                "SHA-256 установщика не совпал с опубликованным checksum.");
+        }
+
+        return path;
+    }
+
+    private static void OpenExternalUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch { }
+    }
+
+    internal Task<string> BuildDiagnosticsSnapshotAsync()
+    {
+        // The diagnostics view intentionally contains only the live FreeTurn log.
+        // Detailed process/WireGuard state remains available in connection diagnostics files.
+        return Task.FromResult(GetFreeTurnLog());
+    }
+
+    private void CopyDiagnosticsButton_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var text = DiagnosticsTextBox.Text ?? string.Empty;
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            Clipboard.SetText(text);
+
+            var original = CopyDiagnosticsButton.Content;
+            CopyDiagnosticsButton.Content = new System.Windows.Shapes.Path
+            {
+                Width = 15,
+                Height = 15,
+                Stretch = Stretch.Uniform,
+                Fill = Brushes.White,
+                Data = System.Windows.Media.Geometry.Parse("M3,9 L7,13 L16,4 L18,6 L7,16 L1,10 Z")
+            };
+
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(900);
+                await Dispatcher.InvokeAsync(() => CopyDiagnosticsButton.Content = original);
+            });
+        }
+        catch
+        {
+            // Clipboard access can fail when another process temporarily owns it.
+        }
+    }
 
     private void LinkBox_TextChanged(object sender, TextChangedEventArgs e)
     {
@@ -740,7 +1126,6 @@ public partial class MainWindow : Window
 
             var originalWg = ExtractWireGuard(uri);
             var peerEndpoint = ExtractPeerEndpoint(originalWg);
-            var wg = NormalizeWireGuard(originalWg, _localRelayPort);
 
             Directory.CreateDirectory(_runtimeRoot);
             var freeTurnExe = await ExtractResourceAsync("FreeTurnClient.Assets.client-windows-amd64.exe", "client-windows-amd64.exe");
@@ -752,6 +1137,7 @@ public partial class MainWindow : Window
             // localhost UDP port and use the same port for WireGuard + FreeTurn.
             await StopStaleFreeTurnProcessesAsync(freeTurnExe);
             _localRelayPort = GetAvailableUdpPort(9000, 9100);
+            var wg = NormalizeWireGuard(originalWg, _localRelayPort);
 
             // The tunnel service name is derived from the .conf filename by WireGuard.
             _tunnelName = $"FreeTurn{Guid.NewGuid():N}".Substring(0, 16);
@@ -761,6 +1147,7 @@ public partial class MainWindow : Window
             SetStatus($"Подключение — {_profileName}", "Запускаю FreeTurn и подключаюсь к VK Call", StatusState.Connecting);
             _freeTurnLog.Clear();
             Interlocked.Exchange(ref _activeTurnAllocations, 0);
+            UpdateStreamsText();
             _routeReadyField.TrySetCanceled();
             // Create a fresh readiness signal for this connection attempt.
             // The previous task may already be completed/canceled.
@@ -773,7 +1160,9 @@ public partial class MainWindow : Window
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true
+                RedirectStandardError = true,
+                StandardOutputEncoding = new UTF8Encoding(false),
+                StandardErrorEncoding = new UTF8Encoding(false)
             };
 
             // freeturn:// carries the client/WireGuard parameters, but the
@@ -789,6 +1178,8 @@ public partial class MainWindow : Window
             // Desktop is explicit so the auth persona matches Windows.
             psi.ArgumentList.Add("-platform");
             psi.ArgumentList.Add("desktop");
+            psi.ArgumentList.Add("-n");
+            psi.ArgumentList.Add(MaxTurnStreams.ToString(CultureInfo.InvariantCulture));
             psi.ArgumentList.Add("-link");
             psi.ArgumentList.Add(callLink);
             // Pass the VPS peer explicitly as well as through freeturn://.
@@ -972,6 +1363,7 @@ public partial class MainWindow : Window
 
             _tunnelName = null;
             Interlocked.Exchange(ref _activeTurnAllocations, 0);
+            UpdateStreamsText();
             IpText.Text = "";
 
             if (updateUi)
@@ -1337,7 +1729,7 @@ public partial class MainWindow : Window
         await StopAllBundledFreeTurnProcessesAsync(clientExe);
     }
 
-    private static string NormalizeWireGuard(string config, int localRelayPort)
+    private string NormalizeWireGuard(string config, int localRelayPort)
     {
         // Current FreeTurn freeturn:// profiles contain wg-quick style text.
         // If an object was supplied, convert its common fields to wg-quick syntax.
@@ -1408,7 +1800,7 @@ public partial class MainWindow : Window
                 var key = t[..t.IndexOf('=')].Trim();
                 if (!endpointDone)
                 {
-                    lines[i] = $"{key} = 127.0.0.1:9000";
+                    lines[i] = $"{key} = 127.0.0.1:{localRelayPort}";
                     endpointDone = true;
                 }
             }
@@ -1713,7 +2105,7 @@ public partial class MainWindow : Window
                 var wgExe = Path.Combine(_runtimeRoot, "wg.exe");
                 if (File.Exists(wgExe))
                 {
-                    foreach (var what in new[] { "latest-handshakes", "transfer", "endpoints", "dump" })
+                    foreach (var what in new[] { "latest-handshakes", "transfer", "endpoints" })
                     {
                         try
                         {
@@ -1814,7 +2206,9 @@ public partial class MainWindow : Window
             UseShellExecute = false,
             CreateNoWindow = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true
+            RedirectStandardError = true,
+            StandardOutputEncoding = new UTF8Encoding(false),
+            StandardErrorEncoding = new UTF8Encoding(false)
         };
 
         foreach (var arg in args)
@@ -1829,7 +2223,7 @@ public partial class MainWindow : Window
         return (process.ExitCode, await stdoutTask, await stderrTask);
     }
 
-    private async Task<string> GetDiagnosticsAsync(string wgExe, string tunnelName)
+    private async Task<string> GetDiagnosticsAsync(string wgExe, string tunnelName, bool includeFreeTurnLog = true)
     {
         var sb = new StringBuilder();
 
@@ -1866,8 +2260,11 @@ public partial class MainWindow : Window
             sb.AppendLine("WireGuard endpoint: " + ex.Message);
         }
 
-        sb.AppendLine("\nFreeTurn:");
-        sb.Append(GetFreeTurnLog());
+        if (includeFreeTurnLog)
+        {
+            sb.AppendLine("\nFreeTurn:");
+            sb.Append(GetFreeTurnLog());
+        }
 
         return sb.ToString().Trim();
     }
@@ -1901,7 +2298,7 @@ public partial class MainWindow : Window
         }
 
         throw new TimeoutException(
-            "FreeTurn не поднял локальный relay 127.0.0.1:9000.\n" +
+            $"FreeTurn не поднял локальный relay 127.0.0.1:{port}.\n" +
             GetFreeTurnLog());
     }
 
@@ -2008,18 +2405,30 @@ public partial class MainWindow : Window
         if (line.Contains("Ensuring route to", StringComparison.OrdinalIgnoreCase))
             _routeReadyField.TrySetResult(true);
 
+        var allocationChanged = false;
         if (line.Contains("TURN allocation up:", StringComparison.OrdinalIgnoreCase))
+        {
             Interlocked.Increment(ref _activeTurnAllocations);
+            allocationChanged = true;
+        }
         else if (line.Contains("TURN allocation released:", StringComparison.OrdinalIgnoreCase))
+        {
             Interlocked.Exchange(ref _activeTurnAllocations,
                 Math.Max(0, Volatile.Read(ref _activeTurnAllocations) - 1));
+            allocationChanged = true;
+        }
 
-        Dispatcher.BeginInvoke(() =>
-        {
-            if (!_busy) return;
-            // Keep the user-facing state readable; raw FreeTurn output is kept
-            // in the diagnostic buffer instead of replacing the status detail.
-        });
+        if (allocationChanged)
+            Dispatcher.BeginInvoke(UpdateStreamsText);
+    }
+
+    private void UpdateStreamsText()
+    {
+        var active = Math.Clamp(Volatile.Read(ref _activeTurnAllocations), 0, MaxTurnStreams);
+        StreamsText.Text = $"Потоки: {active}/{MaxTurnStreams}";
+        StreamsText.Visibility = _tunnelName != null || active > 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
     }
 
     private string GetFreeTurnLog()
@@ -2067,6 +2476,11 @@ public partial class MainWindow : Window
             StatusState.Connected => "Отключиться",
             _ => "Подключиться"
         };
+        StreamsText.Visibility = state == StatusState.Connected
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+        if (state == StatusState.Connected)
+            UpdateStreamsText();
         UpdateTrayState();
     }
 
@@ -2079,3 +2493,6 @@ public partial class MainWindow : Window
     }
 
 }
+
+
+

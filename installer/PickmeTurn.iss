@@ -1,5 +1,5 @@
 #define MyAppName "PickmeTurn"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.2"
 #define MyAppPublisher "PickmeTurn"
 #define MyAppExeName "PickmeTurn.exe"
 
@@ -11,6 +11,7 @@ AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppComments=Windows client for PickmeTurn
 DefaultDirName={autopf}\PickmeTurn
+DirExistsWarning=no
 DefaultGroupName=PickmeTurn
 DisableProgramGroupPage=yes
 ArchitecturesAllowed=x64compatible
@@ -25,8 +26,10 @@ SolidCompression=yes
 WizardStyle=modern
 ChangesAssociations=no
 CloseApplications=yes
+CloseApplicationsFilter=PickmeTurn.exe
 RestartApplications=no
 Uninstallable=yes
+UninstallDisplayName=PickmeTurn
 
 [Languages]
 Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
@@ -42,9 +45,39 @@ Source: "..\publish\PickmeTurn.exe"; DestDir: "{app}"; Flags: ignoreversion rest
 Name: "{group}\PickmeTurn"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
 Name: "{commondesktop}\PickmeTurn"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
+[InstallDelete]
+Type: files; Name: "{app}\PickmeTurn.exe"
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Запустить PickmeTurn"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallDelete]
 ; Runtime contains temporary extracted FreeTurn/WireGuard executables.
 Type: filesandordirs; Name: "{localappdata}\PickmeTurn\Runtime"
+
+[Code]
+var
+  KeepProfiles: Boolean;
+
+procedure CurUninstallStepChanged(AStep: TUninstallStep);
+var
+  Dummy: Integer;
+begin
+  if AStep = usUninstall then
+  begin
+    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, Dummy);
+    KeepProfiles := MsgBox('Удалить сохранённые профили PickmeTurn?' + #13#10 + #13#10 +
+                           'Да — удалить профили и настройки подключения.' + #13#10 +
+                           'Нет — оставить профили для следующей установки.',
+                           mbConfirmation, MB_YESNO) <> IDYES;
+  end
+  else if AStep = usPostUninstall then
+  begin
+    DelTree(ExpandConstant('{app}'), True, True, True);
+    DelTree(ExpandConstant('{localappdata}\PickmeTurn\Runtime'), True, True, True);
+    if not KeepProfiles then
+      DelTree(ExpandConstant('{localappdata}\PickmeTurn'), True, True, True);
+  end;
+end;
+
+

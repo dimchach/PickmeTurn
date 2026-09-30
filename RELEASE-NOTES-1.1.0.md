@@ -1,26 +1,24 @@
-﻿# PickmeTurn 1.1.0
+# PickmeTurn 1.1.0
 
 ## Changes
 
 - Updated the bundled FreeTurn Windows core from 4.0.0 to 4.0.1.
-- Removed the forced -manual-captcha mode.
-- Added explicit -platform desktop for FreeTurn authentication.
-- Automatic CAPTCHA solving is attempted first; FreeTurn can fall back to browser-based manual confirmation when required.
-- PickmeTurn no longer treats a later CAPTCHA notification as an immediate disconnect condition while the FreeTurn relay process remains alive.
-- Added a lightweight FreeTurn process monitor. If the FreeTurn process exits while the tunnel is active, PickmeTurn reports the relay failure and performs cleanup.
-- Existing UI, profile storage, DPAPI protection, WireGuard integration, tray behavior, and connection cleanup are retained.
-- The build script pins FreeTurn 4.0.1 and verifies its SHA-256 against the upstream release checksum before embedding it into the application.
+- Removed the forced `-manual-captcha` mode.
+- Added explicit `-platform desktop`.
+- Automatic CAPTCHA solving is attempted first; the FreeTurn core can fall back to a browser when manual confirmation is required.
+- PickmeTurn does not treat a later CAPTCHA message as a disconnect condition while the FreeTurn relay session remains alive.
+- Added lightweight FreeTurn process monitoring: if the FreeTurn process itself exits while the tunnel is active, PickmeTurn reports the relay failure and performs cleanup.
+- Removed development-only C# warnings from the session monitor and unused state.
+- Existing UI, profile storage, DPAPI protection, WireGuard integration, tray behavior, and deterministic cleanup are retained.
 
-## Validation
+## Verification
 
-- Upgraded from PickmeTurn 1.0.0 to 1.1.0 without losing the existing profile.
-- Confirmed the installed 1.1.0 client starts normally.
-- Confirmed automatic CAPTCHA solving works during connection.
-- Confirmed the tunnel remains connected and provides Internet access during extended testing.
-- Confirmed the 1.1.0 installer and application binaries are Authenticode-signed and successfully verified with zero warnings and zero errors.
+- FreeTurn core 4.0.1 SHA-256: `9669d6babdd7f5eee01aa758605d96a706179d4b94e5baf4d8c70966aab7a801`
+- Release candidate was built successfully with no C# compiler warnings.
+- Installer was compiled successfully with Inno Setup 6.7.3.
+- Upgrade installation over PickmeTurn 1.0.0 was verified: the existing profile remained available and the application connected successfully.
+- Automatic CAPTCHA solving was verified during a sustained connection test.
 
-## Security
+## Notes
 
-The bundled FreeTurn Windows core is downloaded from the upstream GitHub release and verified against its published SHA-256 checksum before being included in the build.
-
-The upstream FreeTurn core remains responsible for CAPTCHA handling and relay/session recovery. PickmeTurn does not implement its own CAPTCHA solver.
+The upstream FreeTurn core owns CAPTCHA solving and relay/session recovery. PickmeTurn does not implement a local CAPTCHA solver or suppress provider failures.

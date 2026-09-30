@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-Write-Host "== PickmeTurn 1.1.0 build ==" -ForegroundColor Cyan
+Write-Host "== PickmeTurn 1.2.2 build ==" -ForegroundColor Cyan
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $assets = Join-Path $root "Assets"
@@ -68,3 +68,4 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed." }
 Write-Host ""
 Write-Host "DONE:" -ForegroundColor Green
 Write-Host (Join-Path $root "publish\PickmeTurn.exe")
+

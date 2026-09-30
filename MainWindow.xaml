@@ -9,14 +9,14 @@
         ResizeMode="CanMinimize">
     <Window.Resources>
         <Style x:Key="TextBoxScrollBarStyle" TargetType="ScrollBar">
-            <Setter Property="Width" Value="8"/>
+            <Setter Property="Width" Value="10"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Foreground" Value="#465365"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
-                        <Grid Width="8" Background="Transparent" ClipToBounds="False">
-                            <Track x:Name="PART_Track" Margin="0,2,0,2" IsDirectionReversed="True" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ClipToBounds="False">
+                        <Grid Width="12" Background="Transparent" ClipToBounds="False">
+                            <Track x:Name="PART_Track" Margin="0" IsDirectionReversed="True" Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}" Value="{TemplateBinding Value}" ClipToBounds="False">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton Command="ScrollBar.PageUpCommand" Background="Transparent" BorderThickness="0" IsTabStop="False">
                                         <RepeatButton.Template>
@@ -28,12 +28,13 @@
                                     <Thumb MinHeight="48" Height="48" VerticalAlignment="Center" ClipToBounds="False">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Grid Width="8" Height="48" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <Ellipse x:Name="ThumbBorder" Width="6" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#465365" SnapsToDevicePixels="True"/>
-                                                </Grid>
+                                                <Border x:Name="ThumbBorder" Width="10" Height="48"
+                                                        CornerRadius="5"
+                                                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                        Background="#465365" SnapsToDevicePixels="True"/>
                                                 <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#6EA8FE"/></Trigger>
-                                                    <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#82B7FF"/></Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Background" Value="#6EA8FE"/></Trigger>
+                                                    <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Background" Value="#82B7FF"/></Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
                                         </Thumb.Template>
@@ -142,12 +143,15 @@
                                     <Thumb MinHeight="48" Height="48" VerticalAlignment="Center" ClipToBounds="False">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Grid Width="8" Height="48" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                                    <Ellipse x:Name="ThumbBorder" Width="6" Height="48" HorizontalAlignment="Center" VerticalAlignment="Center" Fill="#465365" SnapsToDevicePixels="True"/>
+                                                <Grid Width="10" Height="42" ClipToBounds="False" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Border x:Name="ThumbBorder" Width="8" Height="42"
+                                                            CornerRadius="4"
+                                                            HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                            Background="#465365" SnapsToDevicePixels="True"/>
                                                 </Grid>
                                                 <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#6EA8FE"/></Trigger>
-                                                    <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Fill" Value="#82B7FF"/></Trigger>
+                                                    <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="ThumbBorder" Property="Background" Value="#6EA8FE"/></Trigger>
+                                                    <Trigger Property="IsDragging" Value="True"><Setter TargetName="ThumbBorder" Property="Background" Value="#82B7FF"/></Trigger>
                                                 </ControlTemplate.Triggers>
                                             </ControlTemplate>
                                         </Thumb.Template>
@@ -200,15 +204,23 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Margin="28,25,28,0">
-                <TextBlock Text="PickmeTurn" FontSize="27" FontWeight="SemiBold"/>
-                <TextBlock Foreground="{StaticResource Muted}" Margin="0,4,0,0">
-                    <Run Text="pickme works: "/>
-                    <Hyperlink NavigateUri="https://t.me/frrph" RequestNavigate="TelegramLink_RequestNavigate" Foreground="{StaticResource Accent}">
-                        <Run Text="@frrph"/>
-                    </Hyperlink>
-                </TextBlock>
-            </StackPanel>
+            <Grid Margin="28,25,28,0">
+                <StackPanel>
+                    <TextBlock Text="PickmeTurn" FontSize="27" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="{StaticResource Muted}" Margin="0,4,0,0">
+                        <Run Text="pickme works: "/>
+                        <Hyperlink NavigateUri="https://t.me/frrph" RequestNavigate="TelegramLink_RequestNavigate" Foreground="{StaticResource Accent}">
+                            <Run Text="@frrph"/>
+                        </Hyperlink>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button x:Name="DiagnosticsButton" Content=">_" Width="42" Height="36" ToolTip="Отладочная информация"
+                            Click="DiagnosticsButton_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,7,0"/>
+                    <Button x:Name="InfoButton" Content="i" Width="42" Height="36" ToolTip="О приложении и обновлениях"
+                            Click="InfoButton_Click" Style="{StaticResource SecondaryButton}" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Grid>
 
             <StackPanel Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center" Width="470">
                 <Grid Width="175" Height="175" Margin="0,0,0,2" HorizontalAlignment="Center">
@@ -226,6 +238,8 @@
                            TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
                 <TextBlock x:Name="IpText" Margin="0,12,0,0" Foreground="{StaticResource Muted}"
                            TextAlignment="Center"/>
+                <TextBlock x:Name="StreamsText" Text="Потоки: 0/12" Margin="0,5,0,0"
+                           Foreground="{StaticResource Muted}" TextAlignment="Center" Visibility="Collapsed"/>
                 <Button x:Name="ConnectButton" Width="285" Height="62" Margin="0,24,0,0"
                         Content="Подключиться" Click="ConnectButton_Click" FontSize="16" FontWeight="SemiBold"/>
             </StackPanel>
@@ -258,15 +272,23 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <StackPanel Margin="28,25,28,0">
-                <TextBlock Text="PickmeTurn" FontSize="27" FontWeight="SemiBold"/>
-                <TextBlock Foreground="{StaticResource Muted}" Margin="0,4,0,0">
-                    <Run Text="pickme works: "/>
-                    <Hyperlink NavigateUri="https://t.me/frrph" RequestNavigate="TelegramLink_RequestNavigate" Foreground="{StaticResource Accent}">
-                        <Run Text="@frrph"/>
-                    </Hyperlink>
-                </TextBlock>
-            </StackPanel>
+            <Grid Margin="28,25,28,0">
+                <StackPanel>
+                    <TextBlock Text="PickmeTurn" FontSize="27" FontWeight="SemiBold"/>
+                    <TextBlock Foreground="{StaticResource Muted}" Margin="0,4,0,0">
+                        <Run Text="pickme works: "/>
+                        <Hyperlink NavigateUri="https://t.me/frrph" RequestNavigate="TelegramLink_RequestNavigate" Foreground="{StaticResource Accent}">
+                            <Run Text="@frrph"/>
+                        </Hyperlink>
+                    </TextBlock>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button Content=">_" Width="42" Height="36" ToolTip="Отладочная информация"
+                            Click="DiagnosticsButton_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,7,0"/>
+                    <Button Content="i" Width="42" Height="36" ToolTip="О приложении и обновлениях"
+                            Click="InfoButton_Click" Style="{StaticResource SecondaryButton}" FontWeight="SemiBold"/>
+                </StackPanel>
+            </Grid>
 
             <Grid Grid.Row="1" Margin="28,22,28,10">
                 <Grid.RowDefinitions>
@@ -360,6 +382,111 @@
                     <Button x:Name="SetupNextButton" Content="Продолжить" Width="145" Height="42" Click="SetupNext_Click"/>
                     <Button x:Name="SetupSaveButton" Content="Сохранить профиль" Width="165" Height="42"
                             Click="SetupSave_Click" Visibility="Collapsed"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- In-window diagnostics -->
+        <Grid x:Name="DiagnosticsView" Visibility="Collapsed" Background="{StaticResource Bg}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <Grid Margin="22,20,22,14">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="←" Width="42" Height="36"
+                            Click="BackFromUtilityView_Click"
+                            Style="{StaticResource SecondaryButton}"
+                            FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="Диагностика" FontSize="24" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="14,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1" Margin="18,0,18,18"
+                    Background="{StaticResource Input}"
+                    BorderBrush="{StaticResource Border}"
+                    BorderThickness="1"
+                    CornerRadius="12"
+                    Padding="12">
+                <Grid>
+                    <TextBox x:Name="DiagnosticsTextBox"
+                             IsReadOnly="True"
+                             AcceptsReturn="True"
+                             TextWrapping="Wrap"
+                             VerticalScrollBarVisibility="Auto"
+                             HorizontalScrollBarVisibility="Hidden"
+                             FontFamily="Consolas"
+                             FontSize="12"
+                             Padding="10,10,48,10"
+                             Background="{StaticResource Input}"
+                             BorderThickness="0"
+                             IsTabStop="False"/>
+
+                    <Button x:Name="CopyDiagnosticsButton"
+                            Width="34" Height="34"
+                            HorizontalAlignment="Right" VerticalAlignment="Top"
+                            Margin="0,2,4,0"
+                            Style="{StaticResource SecondaryButton}"
+                            ToolTip="Копировать лог"
+                            Click="CopyDiagnosticsButton_Click">
+                        <Path Width="15" Height="15" Stretch="Uniform" Fill="{StaticResource Text}"
+                              Data="M6,1 H15 C16.1,1 17,1.9 17,3 V13 H15 V3 H6 V1 Z M3,4 H12 C13.1,4 14,4.9 14,6 V16 C14,17.1 13.1,18 12,18 H3 C1.9,18 1,17.1 1,16 V6 C1,4.9 1.9,4 3,4 Z M3,6 V16 H12 V6 H3 Z"/>
+                    </Button>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- In-window application information -->
+        <Grid x:Name="InfoView" Visibility="Collapsed" Background="{StaticResource Bg}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Margin="22,20,22,14">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="←" Width="42" Height="36"
+                            Click="BackFromUtilityView_Click"
+                            Style="{StaticResource SecondaryButton}"
+                            FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="О программе" FontSize="24" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="14,0,0,0"/>
+                </StackPanel>
+            </Grid>
+
+            <Grid Grid.Row="1">
+                <StackPanel Width="320" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <TextBlock Text="PickmeTurn" FontSize="27" FontWeight="SemiBold"
+                               HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="InfoVersionText" Foreground="{StaticResource Muted}"
+                               Margin="0,6,0,0" HorizontalAlignment="Center"/>
+                    <TextBlock Text="FreeTurn Core 4.0.1" Foreground="{StaticResource Muted}"
+                               Margin="0,2,0,0" HorizontalAlignment="Center"/>
+
+                    <TextBlock Foreground="{StaticResource Muted}" Margin="0,22,0,0"
+                               HorizontalAlignment="Center">
+                        <Run Text="Исходный код: "/>
+                        <Hyperlink NavigateUri="https://github.com/dimchach/PickmeTurn"
+                                   RequestNavigate="Link_RequestNavigate"
+                                   Foreground="{StaticResource Accent}">GitHub</Hyperlink>
+                    </TextBlock>
+
+                    <TextBlock x:Name="UpdateStatusText"
+                               Foreground="{StaticResource Muted}"
+                               TextWrapping="Wrap" TextAlignment="Center"
+                               HorizontalAlignment="Center"
+                               Margin="0,18,0,0"
+                               Visibility="Collapsed"/>
+
+                    <Button x:Name="CheckUpdateButton"
+                            Content="Проверить обновления"
+                            Width="190" Height="40"
+                            HorizontalAlignment="Center"
+                            Margin="0,26,0,0"
+                            Click="CheckUpdateButton_Click"/>
                 </StackPanel>
             </Grid>
         </Grid>

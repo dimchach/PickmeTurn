@@ -64,9 +64,9 @@ begin
   if AStep = usUninstall then
   begin
     Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, Dummy);
-    KeepProfiles := MsgBox('РЈРґР°Р»РёС‚СЊ СЃРѕС…СЂР°РЅС‘РЅРЅС‹Рµ РїСЂРѕС„РёР»Рё PickmeTurn?' + #13#10 + #13#10 +
-                           'Р”Р° вЂ” СѓРґР°Р»РёС‚СЊ РїСЂРѕС„РёР»Рё Рё РЅР°СЃС‚СЂРѕР№РєРё РїРѕРґРєР»СЋС‡РµРЅРёСЏ.' + #13#10 +
-                           'РќРµС‚ вЂ” РѕСЃС‚Р°РІРёС‚СЊ РїСЂРѕС„РёР»Рё РґР»СЏ СЃР»РµРґСѓСЋС‰РµР№ СѓСЃС‚Р°РЅРѕРІРєРё.',
+    KeepProfiles := MsgBox('Удалить сохранённые профили PickmeTurn?' + #13#10 + #13#10 +
+                           'Да — удалить профили и настройки подключения.' + #13#10 +
+                           'Нет — оставить профили для следующей установки.',
                            mbConfirmation, MB_YESNO) <> IDYES;
   end
   else if AStep = usPostUninstall then

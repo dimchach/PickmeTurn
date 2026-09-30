@@ -1,6 +1,6 @@
-# PickmeTurn 1.2.2
+п»ї# PickmeTurn 1.2.2
 
-Релизная версия с улучшениями стабильности, производительности и работы relay-потоков.
+Release version with stability, performance, and relay-stream improvements.
 
 ## РР·РјРµРЅРµРЅРёСЏ
 

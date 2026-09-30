@@ -36,7 +36,7 @@ Name: "russian"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "РЎРѕР·РґР°С‚СЊ СЏСЂР»С‹Рє РЅР° СЂР°Р±РѕС‡РµРј СЃС‚РѕР»Рµ"; GroupDescription: "Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅС‹Рµ СЏСЂР»С‹РєРё:"; Flags: unchecked
+Name: "desktopicon"; Description: "Создать ярлык на рабочем столе"; GroupDescription: "Дополнительные ярлыки:"; Flags: unchecked
 
 [Files]
 Source: "..\publish\PickmeTurn.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
@@ -49,7 +49,7 @@ Name: "{commondesktop}\PickmeTurn"; Filename: "{app}\{#MyAppExeName}"; WorkingDi
 Type: files; Name: "{app}\PickmeTurn.exe"
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Description: "Р—Р°РїСѓСЃС‚РёС‚СЊ PickmeTurn"; Flags: nowait postinstall skipifsilent runascurrentuser
+Filename: "{app}\{#MyAppExeName}"; Description: "Запустить PickmeTurn"; Flags: nowait postinstall skipifsilent runascurrentuser
 
 [UninstallDelete]
 

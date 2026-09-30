@@ -1,24 +1,24 @@
-# Установщик PickmeTurn
+# РЈСЃС‚Р°РЅРѕРІС‰РёРє PickmeTurn
 
-## Русский
+## Р СѓСЃСЃРєРёР№
 
-Установщик PickmeTurn создаётся с помощью Inno Setup 6.
+РЈСЃС‚Р°РЅРѕРІС‰РёРє PickmeTurn СЃРѕР·РґР°С‘С‚СЃСЏ СЃ РїРѕРјРѕС‰СЊСЋ Inno Setup 6.
 
-### Сборка
+### РЎР±РѕСЂРєР°
 
-1. Установите .NET 8 SDK на машине сборки.
-2. Установите Inno Setup 6.
-3. Из корневого каталога репозитория выполните:
+1. РЈСЃС‚Р°РЅРѕРІРёС‚Рµ .NET 8 SDK РЅР° РјР°С€РёРЅРµ СЃР±РѕСЂРєРё.
+2. РЈСЃС‚Р°РЅРѕРІРёС‚Рµ Inno Setup 6.
+3. РР· РєРѕСЂРЅРµРІРѕРіРѕ РєР°С‚Р°Р»РѕРіР° СЂРµРїРѕР·РёС‚РѕСЂРёСЏ РІС‹РїРѕР»РЅРёС‚Рµ:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process Bypass
 .\build-installer.ps1
 ```
 
-Результат:
+Р РµР·СѓР»СЊС‚Р°С‚:
 
 ```text
-installer-output\PickmeTurn-Setup-1.2.0.exe
+installer-output\PickmeTurn-Setup-1.2.2.exe
 ```
 
 ---
@@ -41,5 +41,5 @@ Set-ExecutionPolicy -Scope Process Bypass
 Output:
 
 ```text
-installer-output\PickmeTurn-Setup-1.2.0.exe
+installer-output\PickmeTurn-Setup-1.2.2.exe
 ```

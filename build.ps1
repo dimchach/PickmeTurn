@@ -44,10 +44,23 @@ function Ensure-FreeTurnCore {
 
 Ensure-FreeTurnCore
 
+$expectedHashes = @{
+  "wireguard.exe" = "04C71FB1A555A6ACE40D3AE9113C90C4829D7CA1D6C903FD20A8D41A0E2BEF94"
+  "wg.exe"        = "E1F8CB5C9E30A878FA7EB0B2251BB4EB4946E669063E6FD5E4383CA4BD0DCAF2"
+}
+
 foreach ($name in @("wireguard.exe", "wg.exe")) {
-  if (-not (Test-Path (Join-Path $assets $name))) {
+  $file = Join-Path $assets $name
+  if (-not (Test-Path $file)) {
     throw "Missing Assets\$name"
   }
+
+  $actual = (Get-FileHash -Algorithm SHA256 -Path $file).Hash.ToUpperInvariant()
+  if ($actual -ne $expectedHashes[$name]) {
+    throw "$name SHA-256 mismatch. Expected $($expectedHashes[$name]), got $actual"
+  }
+
+  Write-Host "$name SHA-256 verified: $actual" -ForegroundColor Green
 }
 
 $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
@@ -68,4 +81,3 @@ if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed." }
 Write-Host ""
 Write-Host "DONE:" -ForegroundColor Green
 Write-Host (Join-Path $root "publish\PickmeTurn.exe")
-

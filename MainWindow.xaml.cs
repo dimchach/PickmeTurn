@@ -29,7 +29,7 @@ namespace FreeTurnClient;
 public partial class MainWindow : Window
 {
     private readonly string _runtimeRoot =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "PickmeTurn", "Runtime");
+        Path.Combine(AppContext.BaseDirectory, "Runtime");
     private Process? _freeTurn;
     private string? _tunnelName;
     private string? _configPath;
@@ -119,11 +119,6 @@ public partial class MainWindow : Window
             var newProfiles = Path.Combine(newRoot, "profiles.dat");
             if (File.Exists(oldProfiles) && !File.Exists(newProfiles))
                 File.Move(oldProfiles, newProfiles);
-
-            var oldRuntime = Path.Combine(oldRoot, "Runtime");
-            var newRuntime = Path.Combine(newRoot, "Runtime");
-            if (Directory.Exists(oldRuntime) && !Directory.Exists(newRuntime))
-                Directory.Move(oldRuntime, newRuntime);
 
             try
             {
@@ -552,7 +547,9 @@ public partial class MainWindow : Window
             throw new InvalidOperationException(
                 "В релизе отсутствует SHA-256 установщика; автоматическое обновление остановлено.");
 
-        var path = Path.Combine(Path.GetTempPath(),
+        var updateDir = Path.Combine(AppContext.BaseDirectory, "Update");
+        Directory.CreateDirectory(updateDir);
+        var path = Path.Combine(updateDir,
             $"PickmeTurn-Setup-{version}-{Guid.NewGuid():N}.exe");
 
         using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead);
@@ -1832,13 +1829,39 @@ public partial class MainWindow : Window
     private async Task<string> ExtractResourceAsync(string resourceName, string fileName)
     {
         var target = Path.Combine(_runtimeRoot, fileName);
-        if (File.Exists(target)) return target;
+        var temp = target + "." + Guid.NewGuid().ToString("N") + ".tmp";
 
-        await using var input = typeof(MainWindow).Assembly.GetManifestResourceStream(resourceName)
-            ?? throw new FileNotFoundException($"Встроенный ресурс не найден: {resourceName}");
-        await using var output = File.Create(target);
-        await input.CopyToAsync(output);
-        return target;
+        try
+        {
+            await using var input = typeof(MainWindow).Assembly.GetManifestResourceStream(resourceName)
+                ?? throw new FileNotFoundException($"Встроенный ресурс не найден: {resourceName}");
+
+            await using (var output = new FileStream(
+                temp,
+                FileMode.CreateNew,
+                FileAccess.Write,
+                FileShare.None,
+                81920,
+                useAsync: true))
+            {
+                await input.CopyToAsync(output);
+            }
+
+            File.Move(temp, target, overwrite: true);
+            return target;
+        }
+        finally
+        {
+            try
+            {
+                if (File.Exists(temp))
+                    File.Delete(temp);
+            }
+            catch
+            {
+                // Best-effort cleanup of an interrupted extraction.
+            }
+        }
     }
 
     private async Task WaitForFreeTurnRelayReadyAsync(TimeSpan timeout)

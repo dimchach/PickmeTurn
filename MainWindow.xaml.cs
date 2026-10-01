@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Threading;
 #nullable enable
 using System;
@@ -217,7 +217,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private void ShowMainWindow()
+    internal void ShowMainWindow()
     {
         Show();
         WindowState = WindowState.Normal;
@@ -2516,6 +2516,8 @@ public partial class MainWindow : Window
     }
 
 }
+
+
 
 
 

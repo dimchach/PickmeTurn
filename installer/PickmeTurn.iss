@@ -1,5 +1,5 @@
 ﻿#define MyAppName "PickmeTurn"
-#define MyAppVersion "1.2.2"
+#define MyAppVersion "1.2.3"
 #define MyAppPublisher "PickmeTurn"
 #define MyAppExeName "PickmeTurn.exe"
 
@@ -76,5 +76,6 @@ begin
       DelTree(ExpandConstant('{localappdata}\PickmeTurn'), True, True, True);
   end;
 end;
+
 
 

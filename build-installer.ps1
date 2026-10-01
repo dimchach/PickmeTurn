@@ -27,5 +27,5 @@ if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
 
 Write-Host "" 
 Write-Host "DONE:" -ForegroundColor Green
-Write-Host (Join-Path $root "installer-output\PickmeTurn-Setup-1.2.2.exe")
+Write-Host (Join-Path $root "installer-output\PickmeTurn-Setup-1.2.4.exe")
 

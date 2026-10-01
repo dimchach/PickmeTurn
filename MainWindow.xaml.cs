@@ -36,12 +36,19 @@ public partial class MainWindow : Window
     private readonly StringBuilder _freeTurnLog = new();
     private bool _busy;
     private string _profileName = "";
+    private string _activeFreeTurnUri = "";
+    private string _activeCallLink = "";
+    private string _activePeerEndpoint = "";
+    private string _activeOriginalWg = "";
     private readonly List<string> _temporaryDirectRoutes = new();
     private const int MaxTurnStreams = 12;
     private int _activeTurnAllocations;
     private int _localRelayPort = 9000;
     private TaskCompletionSource<bool> _routeReadyField = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private CancellationTokenSource? _sessionMonitorCts;
+    private CancellationTokenSource? _networkRecoveryCts;
+    private readonly SemaphoreSlim _networkRecoveryLock = new(1, 1);
+    private string _networkFingerprint = "";
     private readonly SemaphoreSlim _disconnectLock = new(1, 1);
     private readonly string _profilesPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -95,6 +102,9 @@ public partial class MainWindow : Window
 
         UpdateConnectButtonState();
         Closing += MainWindow_Closing;
+      NetworkChange.NetworkAddressChanged += NetworkChange_Handler;
+      NetworkChange.NetworkAvailabilityChanged += NetworkChange_Handler;
+      _networkFingerprint = GetPhysicalNetworkFingerprint();
     }
 
     private void MigrateLegacyStorage()
@@ -226,6 +236,221 @@ public partial class MainWindow : Window
         Topmost = false;
     }
 
+    private void NetworkChange_Handler(object? sender, EventArgs e)
+    {
+        if (_busy || _freeTurn == null || _freeTurn.HasExited)
+            return;
+
+        var fingerprint = GetPhysicalNetworkFingerprint();
+        if (string.IsNullOrEmpty(fingerprint) || fingerprint == _networkFingerprint)
+            return;
+
+        _networkRecoveryCts?.Cancel();
+        _networkRecoveryCts?.Dispose();
+        _networkRecoveryCts = new CancellationTokenSource();
+        var token = _networkRecoveryCts.Token;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(3), token);
+                await RecoverAfterNetworkHandoverAsync(token);
+            }
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
+            {
+            }
+            catch
+            {
+            }
+        }, token);
+    }
+
+    private string GetPhysicalNetworkFingerprint()
+    {
+        var parts = NetworkInterface.GetAllNetworkInterfaces()
+            .Where(n => n.OperationalStatus == OperationalStatus.Up)
+            .Where(n => n.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+            .Where(n => !n.Description.Contains("WireGuard", StringComparison.OrdinalIgnoreCase))
+            .Where(n => !n.Name.Contains("WireGuard", StringComparison.OrdinalIgnoreCase))
+            .Select(n =>
+            {
+                var props = n.GetIPProperties();
+                var ips = props.UnicastAddresses
+                    .Where(a => a.Address.AddressFamily == AddressFamily.InterNetwork)
+                    .Select(a => a.Address.ToString())
+                    .OrderBy(x => x);
+                var gateways = props.GatewayAddresses
+                    .Where(g => g.Address.AddressFamily == AddressFamily.InterNetwork)
+                    .Select(g => g.Address.ToString())
+                    .OrderBy(x => x);
+                return n.Id + "|" + string.Join(",", ips) + "|" + string.Join(",", gateways);
+            })
+            .OrderBy(x => x);
+
+        return string.Join(";", parts);
+    }
+    private async Task RecoverAfterNetworkHandoverAsync(CancellationToken cancellationToken)
+    {
+        await _networkRecoveryLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_busy || _freeTurn == null || _freeTurn.HasExited ||
+                string.IsNullOrWhiteSpace(_activeFreeTurnUri) ||
+                string.IsNullOrWhiteSpace(_activeCallLink) ||
+                string.IsNullOrWhiteSpace(_activePeerEndpoint) ||
+                string.IsNullOrWhiteSpace(_activeOriginalWg))
+                return;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                SetStatus(
+                    $"Восстановление — {_profileName}",
+                    "Сеть изменилась, восстанавливаю соединение FreeTurn",
+                    StatusState.Connecting);
+            });
+
+            await RemoveTemporaryDirectRoutesAsync();
+
+            var oldFreeTurn = _freeTurn;
+            _freeTurn = null;
+
+            try
+            {
+                if (!oldFreeTurn.HasExited)
+                {
+                    try
+                    {
+                        oldFreeTurn.Kill(entireProcessTree: true);
+                    }
+                    catch
+                    {
+                    }
+
+                    try
+                    {
+                        await oldFreeTurn.WaitForExitAsync(cancellationToken);
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+            finally
+            {
+                oldFreeTurn.Dispose();
+            }
+
+            _freeTurnLog.Clear();
+            Interlocked.Exchange(ref _activeTurnAllocations, 0);
+            _routeReadyField.TrySetCanceled();
+            _routeReadyField = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var freeTurnExe = Path.Combine(_runtimeRoot, "client-windows-amd64.exe");
+            if (!File.Exists(freeTurnExe))
+                throw new FileNotFoundException("FreeTurn runtime не найден.", freeTurnExe);
+
+            _localRelayPort = GetAvailableUdpPort(9000, 9100);
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = freeTurnExe,
+                WorkingDirectory = _runtimeRoot,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                StandardOutputEncoding = new UTF8Encoding(false),
+                StandardErrorEncoding = new UTF8Encoding(false)
+            };
+
+            psi.ArgumentList.Add("-platform");
+            psi.ArgumentList.Add("desktop");
+            psi.ArgumentList.Add("-n");
+            psi.ArgumentList.Add(MaxTurnStreams.ToString(CultureInfo.InvariantCulture));
+            psi.ArgumentList.Add("-link");
+            psi.ArgumentList.Add(_activeCallLink);
+            psi.ArgumentList.Add("-peer");
+            psi.ArgumentList.Add(_activePeerEndpoint);
+            psi.ArgumentList.Add("-listen");
+            psi.ArgumentList.Add($"127.0.0.1:{_localRelayPort}");
+            psi.ArgumentList.Add("-routes");
+            psi.ArgumentList.Add(_activeFreeTurnUri);
+
+            var process = new Process
+            {
+                StartInfo = psi,
+                EnableRaisingEvents = true
+            };
+            process.OutputDataReceived += (_, a) => CaptureFreeTurnLine(a.Data);
+            process.ErrorDataReceived += (_, a) => CaptureFreeTurnLine(a.Data);
+
+            _freeTurn = process;
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            await WaitForFreeTurnRelayReadyAsync(
+                TimeSpan.FromSeconds(180));
+
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await AddDirectRouteExceptionsAsync(_activeOriginalWg);
+
+            if (process.HasExited)
+                throw new InvalidOperationException(
+                    $"FreeTurn завершился с кодом {process.ExitCode}.\n{GetFreeTurnLog()}");
+
+            _networkFingerprint = GetPhysicalNetworkFingerprint();
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                SetStatus(
+                    $"Подключено — {_profileName}",
+                    "Соединение восстановлено после смены сети",
+                    StatusState.Connected);
+                UpdateStreamsText();
+            });
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            var message = ex.Message;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                SetStatus(
+                    $"Ошибка — {_profileName}",
+                    $"Не удалось восстановить соединение: {message}",
+                    StatusState.Error);
+            });
+
+            var failed = _freeTurn;
+            _freeTurn = null;
+
+            if (failed != null)
+            {
+                try
+                {
+                    if (!failed.HasExited)
+                        failed.Kill(entireProcessTree: true);
+                }
+                catch
+                {
+                }
+
+                failed.Dispose();
+            }
+        }
+        finally
+        {
+            _networkFingerprint = GetPhysicalNetworkFingerprint();
+            _networkRecoveryLock.Release();
+        }
+    }
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         if (_allowWindowClose) return;
@@ -1123,9 +1348,15 @@ public partial class MainWindow : Window
 
             var originalWg = ExtractWireGuard(uri);
             var peerEndpoint = ExtractPeerEndpoint(originalWg);
+            _activeFreeTurnUri = uri;
+            _activeCallLink = callLink;
+            _activePeerEndpoint = peerEndpoint;
+            _activeOriginalWg = originalWg;
 
             Directory.CreateDirectory(_runtimeRoot);
             var freeTurnExe = await ExtractResourceAsync("FreeTurnClient.Assets.client-windows-amd64.exe", "client-windows-amd64.exe");
+            // Remove orphaned WireGuard tunnel services before replacing the bundled binary.
+            await StopStaleWireGuardTunnelServicesAsync();
             var wireguardExe = await ExtractResourceAsync("FreeTurnClient.Assets.wireguard.exe", "wireguard.exe");
             var wgExe = await ExtractResourceAsync("FreeTurnClient.Assets.wg.exe", "wg.exe");
 
@@ -1243,6 +1474,7 @@ public partial class MainWindow : Window
             await WaitForWireGuardHandshakeAsync(wgExe, _tunnelName, TimeSpan.FromSeconds(40));
             await CheckTunnelConnectivityAsync();
 
+            _networkFingerprint = GetPhysicalNetworkFingerprint();
             SetStatus($"Подключено — {_profileName}", "WireGuard handshake подтверждён • трафик идёт через VPS", StatusState.Connected);
             ConnectButton.Content = "Отключиться";
             ConnectButton.IsEnabled = true;
@@ -1269,10 +1501,101 @@ public partial class MainWindow : Window
         }
     }
 
+    private async Task StopStaleWireGuardTunnelServicesAsync()
+    {
+        try
+        {
+            var psi = new ProcessStartInfo
+            {
+                FileName = "sc.exe",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            psi.ArgumentList.Add("query");
+            psi.ArgumentList.Add("type=");
+            psi.ArgumentList.Add("service");
+            psi.ArgumentList.Add("state=");
+            psi.ArgumentList.Add("all");
+
+            using var process = Process.Start(psi);
+            if (process == null)
+                return;
+
+            var output = await process.StandardOutput.ReadToEndAsync();
+            await process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync();
+
+            var serviceNames = Regex.Matches(
+                    output,
+                    @"SERVICE_NAME:\s*(WireGuardTunnel\$FreeTurn[^\r\n]*)",
+                    RegexOptions.IgnoreCase)
+                .Select(m => m.Groups[1].Value.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            foreach (var serviceName in serviceNames)
+            {
+                try
+                {
+                    var stopPsi = new ProcessStartInfo
+                    {
+                        FileName = "sc.exe",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+                    stopPsi.ArgumentList.Add("stop");
+                    stopPsi.ArgumentList.Add(serviceName);
+
+                    using var stopProcess = Process.Start(stopPsi);
+                    if (stopProcess != null)
+                        await stopProcess.WaitForExitAsync();
+                }
+                catch
+                {
+                }
+
+                try
+                {
+                    var deletePsi = new ProcessStartInfo
+                    {
+                        FileName = "sc.exe",
+                        UseShellExecute = false,
+                        CreateNoWindow = true,
+                        RedirectStandardOutput = true,
+                        RedirectStandardError = true
+                    };
+                    deletePsi.ArgumentList.Add("delete");
+                    deletePsi.ArgumentList.Add(serviceName);
+
+                    using var deleteProcess = Process.Start(deletePsi);
+                    if (deleteProcess != null)
+                        await deleteProcess.WaitForExitAsync();
+                }
+                catch
+                {
+                }
+            }
+
+            if (serviceNames.Length > 0)
+                await Task.Delay(500);
+        }
+        catch
+        {
+        }
+    }
     private async Task DisconnectAsync(
         bool updateUi = true,
         bool forceFreeTurnCleanup = false)
     {
+        _networkRecoveryCts?.Cancel();
+        _networkRecoveryCts?.Dispose();
+        _networkRecoveryCts = null;
+
+
         await _disconnectLock.WaitAsync();
         try
         {

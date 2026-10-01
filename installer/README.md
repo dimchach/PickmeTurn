@@ -18,7 +18,7 @@ Set-ExecutionPolicy -Scope Process Bypass
 Р РµР·СѓР»СЊС‚Р°С‚:
 
 ```text
-installer-output\PickmeTurn-Setup-1.2.2.exe
+installer-output\PickmeTurn-Setup-1.2.4.exe
 ```
 
 ---
@@ -41,5 +41,5 @@ Set-ExecutionPolicy -Scope Process Bypass
 Output:
 
 ```text
-installer-output\PickmeTurn-Setup-1.2.2.exe
+installer-output\PickmeTurn-Setup-1.2.4.exe
 ```

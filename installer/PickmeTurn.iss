@@ -1,5 +1,5 @@
-﻿#define MyAppName "PickmeTurn"
-#define MyAppVersion "1.2.3"
+#define MyAppName "PickmeTurn"
+#define MyAppVersion "1.2.4"
 #define MyAppPublisher "PickmeTurn"
 #define MyAppExeName "PickmeTurn.exe"
 

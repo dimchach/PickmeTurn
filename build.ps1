@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-Write-Host "== PickmeTurn 1.2.2 build ==" -ForegroundColor Cyan
+Write-Host "== PickmeTurn 1.2.4 build ==" -ForegroundColor Cyan
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $assets = Join-Path $root "Assets"

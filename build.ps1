@@ -1,12 +1,12 @@
 $ErrorActionPreference = "Stop"
-Write-Host "== PickmeTurn 1.2.4 build ==" -ForegroundColor Cyan
+Write-Host "== PickmeTurn 1.2.5 build ==" -ForegroundColor Cyan
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $assets = Join-Path $root "Assets"
-$freeTurnVersion = "4.0.1"
+$freeTurnVersion = "4.0.3"
 $freeTurnAsset = "client-windows-amd64.exe"
-$freeTurnUrl = "https://github.com/samosvalishe/free-turn-proxy/releases/download/v$freeTurnVersion/$freeTurnAsset"
-$checksumsUrl = "https://github.com/samosvalishe/free-turn-proxy/releases/download/v$freeTurnVersion/checksums.txt"
+$freeTurnUrl = "https://github.com/hackdiaz-dev/free-turn-proxy/releases/download/v$freeTurnVersion/$freeTurnAsset"
+$checksumsUrl = "https://github.com/hackdiaz-dev/free-turn-proxy/releases/download/v$freeTurnVersion/checksums.txt"
 
 New-Item -ItemType Directory -Force $assets | Out-Null
 

@@ -51,7 +51,7 @@ PickmeTurn распространяется вместе с бинарными �
 
 Free Turn Proxy:
 
-https://github.com/samosvalishe/free-turn-proxy
+https://github.com/hackdiaz-dev/free-turn-proxy
 
 WireGuard for Windows:
 
@@ -114,7 +114,7 @@ License information, license texts, and links to the upstream projects are provi
 
 Free Turn Proxy:
 
-https://github.com/samosvalishe/free-turn-proxy
+https://github.com/hackdiaz-dev/free-turn-proxy
 
 WireGuard for Windows:
 

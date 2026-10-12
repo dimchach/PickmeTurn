@@ -1399,8 +1399,8 @@ public partial class MainWindow : Window
             // This is important for clients/parsers that stop processing flags
             // after the first positional argument.
             // v1.1: let FreeTurn use its native automatic CAPTCHA solver.
-            // The bundled core is updated to 4.0.1, which contains the
-            // current CAPTCHA parsing fix. If automatic solving cannot
+            // The bundled core version is 4.0.3; check upstream release notes for
+            // version-specific CAPTCHA fixes. If automatic solving cannot
             // complete, FreeTurn falls back to its manual browser flow.
             // We intentionally do NOT pass -manual-captcha here.
             // Desktop is explicit so the auth persona matches Windows.
@@ -1505,30 +1505,18 @@ public partial class MainWindow : Window
     {
         try
         {
-            var psi = new ProcessStartInfo
+            var result = await RunScCommandAsync(
+                "query", "type=", "service", "state=", "all");
+
+            if (result.ExitCode != 0 && string.IsNullOrWhiteSpace(result.Output))
             {
-                FileName = "sc.exe",
-                UseShellExecute = false,
-                CreateNoWindow = true,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true
-            };
-            psi.ArgumentList.Add("query");
-            psi.ArgumentList.Add("type=");
-            psi.ArgumentList.Add("service");
-            psi.ArgumentList.Add("state=");
-            psi.ArgumentList.Add("all");
-
-            using var process = Process.Start(psi);
-            if (process == null)
+                _freeTurnLog.AppendLine(
+                    "Could not enumerate Windows services for stale WireGuard cleanup.");
                 return;
-
-            var output = await process.StandardOutput.ReadToEndAsync();
-            await process.StandardError.ReadToEndAsync();
-            await process.WaitForExitAsync();
+            }
 
             var serviceNames = Regex.Matches(
-                    output,
+                    result.Output,
                     @"SERVICE_NAME:\s*(WireGuardTunnel\$FreeTurn[^\r\n]*)",
                     RegexOptions.IgnoreCase)
                 .Select(m => m.Groups[1].Value.Trim())
@@ -1539,54 +1527,105 @@ public partial class MainWindow : Window
             {
                 try
                 {
-                    var stopPsi = new ProcessStartInfo
+                    var removed = await RemoveWireGuardTunnelServiceAsync(
+                        serviceName, TimeSpan.FromSeconds(10));
+
+                    if (!removed)
                     {
-                        FileName = "sc.exe",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    };
-                    stopPsi.ArgumentList.Add("stop");
-                    stopPsi.ArgumentList.Add(serviceName);
-
-                    using var stopProcess = Process.Start(stopPsi);
-                    if (stopProcess != null)
-                        await stopProcess.WaitForExitAsync();
+                        _freeTurnLog.AppendLine(
+                            $"Could not confirm removal of stale service {serviceName}.");
+                    }
                 }
-                catch
+                catch (Exception ex)
                 {
-                }
-
-                try
-                {
-                    var deletePsi = new ProcessStartInfo
-                    {
-                        FileName = "sc.exe",
-                        UseShellExecute = false,
-                        CreateNoWindow = true,
-                        RedirectStandardOutput = true,
-                        RedirectStandardError = true
-                    };
-                    deletePsi.ArgumentList.Add("delete");
-                    deletePsi.ArgumentList.Add(serviceName);
-
-                    using var deleteProcess = Process.Start(deletePsi);
-                    if (deleteProcess != null)
-                        await deleteProcess.WaitForExitAsync();
-                }
-                catch
-                {
+                    _freeTurnLog.AppendLine(
+                        $"Stale service cleanup failed for {serviceName}: {ex.Message}");
                 }
             }
-
-            if (serviceNames.Length > 0)
-                await Task.Delay(500);
         }
-        catch
+        catch (Exception ex)
         {
+            _freeTurnLog.AppendLine(
+                $"Could not clean stale WireGuard services: {ex.Message}");
         }
     }
+
+    private static async Task<(int ExitCode, string Output)> RunScCommandAsync(
+        params string[] arguments)
+    {
+        var psi = new ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, "sc.exe"),
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+
+        foreach (var argument in arguments)
+            psi.ArgumentList.Add(argument);
+
+        using var process = Process.Start(psi);
+        if (process == null)
+            throw new InvalidOperationException("Could not start sc.exe.");
+
+        var stdoutTask = process.StandardOutput.ReadToEndAsync();
+        var stderrTask = process.StandardError.ReadToEndAsync();
+        await process.WaitForExitAsync();
+
+        var stdout = await stdoutTask;
+        var stderr = await stderrTask;
+        return (process.ExitCode, stdout + Environment.NewLine + stderr);
+    }
+
+    private static async Task<bool> IsWireGuardServiceAbsentAsync(string serviceName)
+    {
+        var result = await RunScCommandAsync("query", serviceName);
+        return result.ExitCode != 0 &&
+               result.Output.Contains("1060", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static async Task<bool> RemoveWireGuardTunnelServiceAsync(
+        string tunnelName,
+        TimeSpan timeout)
+    {
+        var serviceName = tunnelName.StartsWith(
+            "WireGuardTunnel$", StringComparison.OrdinalIgnoreCase)
+            ? tunnelName
+            : "WireGuardTunnel$" + tunnelName;
+
+        if (await IsWireGuardServiceAbsentAsync(serviceName))
+            return true;
+
+        await RunScCommandAsync("stop", serviceName);
+
+        var stopDeadline = DateTime.UtcNow.AddSeconds(5);
+        while (DateTime.UtcNow < stopDeadline)
+        {
+            if (await IsWireGuardServiceAbsentAsync(serviceName))
+                return true;
+
+            var state = await RunScCommandAsync("query", serviceName);
+            if (state.Output.Contains("STOPPED", StringComparison.OrdinalIgnoreCase))
+                break;
+
+            await Task.Delay(250);
+        }
+
+        await RunScCommandAsync("delete", serviceName);
+
+        var deleteDeadline = DateTime.UtcNow + timeout;
+        while (DateTime.UtcNow < deleteDeadline)
+        {
+            if (await IsWireGuardServiceAbsentAsync(serviceName))
+                return true;
+
+            await Task.Delay(250);
+        }
+
+        return await IsWireGuardServiceAbsentAsync(serviceName);
+    }
+
     private async Task DisconnectAsync(
         bool updateUi = true,
         bool forceFreeTurnCleanup = false)
@@ -1625,16 +1664,35 @@ public partial class MainWindow : Window
 
                     try
                     {
-                        using var p = Process.Start(psi);
-                        if (p != null)
+                        using var process = Process.Start(psi);
+                        if (process != null)
                         {
-                            await p.WaitForExitAsync();
-                            // Give the WireGuard service a short moment to
-                            // release its interface/routes.
+                            await process.WaitForExitAsync();
                             await Task.Delay(250);
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        _freeTurnLog.AppendLine(
+                            $"WireGuard tunnel uninstall failed: {ex.Message}");
+                    }
+                }
+
+                try
+                {
+                    var removed = await RemoveWireGuardTunnelServiceAsync(
+                        tunnelName, TimeSpan.FromSeconds(10));
+
+                    if (!removed)
+                    {
+                        _freeTurnLog.AppendLine(
+                            $"Failed to confirm removal of service WireGuardTunnel${tunnelName}.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _freeTurnLog.AppendLine(
+                        $"Fallback service cleanup failed WireGuardTunnel${tunnelName}: {ex.Message}");
                 }
             }
 

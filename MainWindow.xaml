@@ -463,7 +463,7 @@
                                HorizontalAlignment="Center"/>
                     <TextBlock x:Name="InfoVersionText" Foreground="{StaticResource Muted}"
                                Margin="0,6,0,0" HorizontalAlignment="Center"/>
-                    <TextBlock Text="FreeTurn Core 4.0.1" Foreground="{StaticResource Muted}"
+                    <TextBlock Text="FreeTurn Core 4.0.3" Foreground="{StaticResource Muted}"
                                Margin="0,2,0,0" HorizontalAlignment="Center"/>
 
                     <TextBlock Foreground="{StaticResource Muted}" Margin="0,22,0,0"

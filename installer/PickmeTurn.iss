@@ -1,5 +1,5 @@
 #define MyAppName "PickmeTurn"
-#define MyAppVersion "1.2.4"
+#define MyAppVersion "1.2.5"
 #define MyAppPublisher "PickmeTurn"
 #define MyAppExeName "PickmeTurn.exe"
 
@@ -40,6 +40,8 @@ Name: "desktopicon"; Description: "Создать ярлык на рабочем
 
 [Files]
 Source: "..\publish\PickmeTurn.exe"; DestDir: "{app}"; Flags: ignoreversion restartreplace
+Source: "Cleanup-WireGuardServices.ps1"; DestDir: "{app}"; Flags: ignoreversion
+Source: "Request-PickmeTurnShutdown.ps1"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\PickmeTurn"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -63,7 +65,33 @@ var
 begin
   if AStep = usUninstall then
   begin
-    Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#MyAppExeName}', '', SW_HIDE, ewWaitUntilTerminated, Dummy);
+    if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+      '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\Request-PickmeTurnShutdown.ps1') + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, Dummy) then
+    begin
+      MsgBox('Could not request PickmeTurn shutdown. Close the application and retry uninstallation.', mbError, MB_OK);
+      Abort;
+    end;
+
+    if Dummy <> 0 then
+    begin
+      MsgBox('PickmeTurn did not shut down cleanly. Uninstallation has been cancelled; close the application and retry.', mbError, MB_OK);
+      Abort;
+    end;
+
+    if not Exec(ExpandConstant('{sys}\WindowsPowerShell\v1.0\powershell.exe'),
+      '-NoProfile -ExecutionPolicy Bypass -File "' + ExpandConstant('{app}\Cleanup-WireGuardServices.ps1') + '"',
+      '', SW_HIDE, ewWaitUntilTerminated, Dummy) then
+    begin
+      MsgBox('Could not start WireGuard cleanup. Uninstallation has been cancelled.', mbError, MB_OK);
+      Abort;
+    end;
+
+    if Dummy <> 0 then
+    begin
+      MsgBox('WireGuard cleanup failed. Uninstallation has been cancelled to avoid leaving a stale tunnel service.', mbError, MB_OK);
+      Abort;
+    end;
     KeepProfiles := MsgBox('Удалить сохранённые профили PickmeTurn?' + #13#10 + #13#10 +
                            'Да — удалить профили и настройки подключения.' + #13#10 +
                            'Нет — оставить профили для следующей установки.',

@@ -1,5 +1,5 @@
 #define MyAppName "PickmeTurn"
-#define MyAppVersion "1.2.5"
+#define MyAppVersion "1.2.6"
 #define MyAppPublisher "PickmeTurn"
 #define MyAppExeName "PickmeTurn.exe"
 
@@ -100,6 +100,9 @@ begin
   else if AStep = usPostUninstall then
   begin
     DelTree(ExpandConstant('{app}'), True, True, True);
+    // Runtime contains only extracted FreeTurn/WireGuard binaries and logs.
+    // Remove it even when the user chooses to preserve profiles/settings.
+    DelTree(ExpandConstant('{localappdata}\PickmeTurn\Runtime'), True, True, True);
     if not KeepProfiles then
       DelTree(ExpandConstant('{localappdata}\PickmeTurn'), True, True, True);
   end;

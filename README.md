@@ -23,7 +23,8 @@
 
 ### Требования
 
-- Windows x64.
+- Для сборки: Windows x64, .NET 8 SDK и Go 1.26.10 или новее (Go нужен для сборки FreeTurn 4.1.0 с поддержкой переключателя Advanced CAPTCHA).
+- Для запуска готового приложения: Windows x64.
 - Профиль FreeTurn и необходимая VK Call-ссылка.
 - Совместимый сервер FreeTurn / WireGuard.
 
@@ -123,3 +124,8 @@ https://github.com/WireGuard/wireguard-windows
 ### License
 
 PickmeTurn's own source code is released under the MIT License. The full text is available in `LICENSE`. Third-party components retain their respective licenses.
+
+
+### Advanced CAPTCHA (сборка PickmeTurn)
+
+В меню настроек (значок шестерёнки на главном экране) можно включить расширенный алгоритм автоматического решения CAPTCHA. Настройка хранится в `%LOCALAPPDATA%\PickmeTurn\settings.json` и передаётся ядру при следующем подключении. Скрипт `build.ps1` скачивает исходники FreeTurn v4.1.0, добавляет флаг `-advanced-captcha`, собирает ядро Go и затем публикует WPF-приложение.

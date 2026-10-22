@@ -1,4 +1,4 @@
-<Window x:Class="FreeTurnClient.MainWindow"
+﻿<Window x:Class="FreeTurnClient.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="PickmeTurn" Icon="Assets/FreeTurn.ico" Width="560" Height="650"
@@ -217,6 +217,8 @@
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                     <Button x:Name="DiagnosticsButton" Content=">_" Width="42" Height="36" ToolTip="Отладочная информация"
                             Click="DiagnosticsButton_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,7,0"/>
+                    <Button x:Name="SettingsButton" Content="⚙" Width="42" Height="36" ToolTip="Настройки"
+                            Click="SettingsButton_Click" Style="{StaticResource SecondaryButton}" Margin="0,0,7,0" FontSize="14" FontWeight="Normal"/>
                     <Button x:Name="InfoButton" Content="i" Width="42" Height="36" ToolTip="О приложении и обновлениях"
                             Click="InfoButton_Click" Style="{StaticResource SecondaryButton}" FontWeight="SemiBold"/>
                 </StackPanel>
@@ -463,7 +465,7 @@
                                HorizontalAlignment="Center"/>
                     <TextBlock x:Name="InfoVersionText" Foreground="{StaticResource Muted}"
                                Margin="0,6,0,0" HorizontalAlignment="Center"/>
-                    <TextBlock Text="FreeTurn Core 4.0.3" Foreground="{StaticResource Muted}"
+                    <TextBlock Text="FreeTurn Core 4.1.0" Foreground="{StaticResource Muted}"
                                Margin="0,2,0,0" HorizontalAlignment="Center"/>
 
                     <TextBlock Foreground="{StaticResource Muted}" Margin="0,22,0,0"
@@ -489,6 +491,34 @@
                             Click="CheckUpdateButton_Click"/>
                 </StackPanel>
             </Grid>
+        </Grid>
+
+        <!-- Application settings -->
+        <Grid x:Name="SettingsView" Visibility="Collapsed" Background="{StaticResource Bg}">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid Margin="22,20,22,14">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="←" Width="42" Height="36"
+                            Click="BackFromUtilityView_Click"
+                            Style="{StaticResource SecondaryButton}"
+                            FontSize="18" FontWeight="SemiBold"/>
+                    <TextBlock Text="Настройки" FontSize="24" FontWeight="SemiBold"
+                               VerticalAlignment="Center" Margin="14,0,0,0"/>
+                </StackPanel>
+            </Grid>
+            <StackPanel Grid.Row="1" Margin="28,18,28,0" VerticalAlignment="Top">
+                <CheckBox x:Name="AdvancedCaptchaCheckBox" IsChecked="False"
+                          Click="AdvancedCaptchaCheckBox_Changed"
+                          Foreground="{StaticResource Text}" FontSize="14" FontWeight="SemiBold"
+                          Content="Расширенное решение CAPTCHA"/>
+                <TextBlock TextWrapping="Wrap" Margin="24,8,0,0">
+                    <Run Text="Тестовая функция. " Foreground="#FFFF5C5C"/>
+                    <Run Text="Может открывать браузер для автоматического решения CAPTCHA. Включайте только при необходимости; результат и поведение могут отличаться. Изменение применяется при следующем подключении." Foreground="{StaticResource Muted}"/>
+                </TextBlock>
+            </StackPanel>
         </Grid>
 
         <!-- Existing-profile bottom drawer -->

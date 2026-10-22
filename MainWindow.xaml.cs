@@ -28,8 +28,11 @@ namespace FreeTurnClient;
 
 public partial class MainWindow : Window
 {
-    private readonly string _runtimeRoot =
-        Path.Combine(AppContext.BaseDirectory, "Runtime");
+    // Runtime binaries are extracted to per-user storage, not beside the EXE.
+    // This works for both portable builds and installs under Program Files.
+    private readonly string _runtimeRoot = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PickmeTurn", "Runtime");
     private Process? _freeTurn;
     private string? _tunnelName;
     private string? _configPath;
@@ -53,6 +56,11 @@ public partial class MainWindow : Window
     private readonly string _profilesPath = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "PickmeTurn", "profiles.dat");
+    private readonly string _settingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "PickmeTurn", "settings.json");
+    private bool _advancedCaptchaEnabled;
+    private bool _loadingSettings;
     private readonly List<FreeTurnProfile> _profiles = new();
     private Guid? _selectedProfileId;
     private bool _profileEditorUpdating;
@@ -74,6 +82,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        LoadAppSettings();
 
         _diagnosticsTimer = new DispatcherTimer
         {
@@ -376,6 +385,8 @@ public partial class MainWindow : Window
             psi.ArgumentList.Add("-listen");
             psi.ArgumentList.Add($"127.0.0.1:{_localRelayPort}");
             psi.ArgumentList.Add("-routes");
+            if (_advancedCaptchaEnabled)
+                psi.ArgumentList.Add("-advanced-captcha");
             psi.ArgumentList.Add(_activeFreeTurnUri);
 
             var process = new Process
@@ -484,6 +495,63 @@ public partial class MainWindow : Window
         await ShowUtilityViewAsync(InfoView);
     }
 
+    private async void SettingsButton_Click(object sender, RoutedEventArgs e)
+    {
+        _loadingSettings = true;
+        AdvancedCaptchaCheckBox.IsChecked = _advancedCaptchaEnabled;
+        _loadingSettings = false;
+        await ShowUtilityViewAsync(SettingsView);
+    }
+
+    private void AdvancedCaptchaCheckBox_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loadingSettings)
+            return;
+
+        _advancedCaptchaEnabled = AdvancedCaptchaCheckBox.IsChecked == true;
+        SaveAppSettings();
+    }
+
+    private void LoadAppSettings()
+    {
+        try
+        {
+            if (File.Exists(_settingsPath))
+            {
+                using var stream = File.OpenRead(_settingsPath);
+                var settings = JsonSerializer.Deserialize<AppSettings>(stream);
+                _advancedCaptchaEnabled = settings?.AdvancedCaptcha ?? false;
+            }
+        }
+        catch
+        {
+            _advancedCaptchaEnabled = false;
+        }
+    }
+
+    private void SaveAppSettings()
+    {
+        try
+        {
+            var directory = Path.GetDirectoryName(_settingsPath);
+            if (!string.IsNullOrWhiteSpace(directory))
+                Directory.CreateDirectory(directory);
+            var json = JsonSerializer.Serialize(new AppSettings { AdvancedCaptcha = _advancedCaptchaEnabled },
+                new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_settingsPath, json, new UTF8Encoding(false));
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Не удалось сохранить настройки: " + ex.Message, "PickmeTurn",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
+    }
+
+    private sealed class AppSettings
+    {
+        public bool AdvancedCaptcha { get; set; }
+    }
+
     private async void DiagnosticsButton_Click(object sender, RoutedEventArgs e)
     {
         await ShowUtilityViewAsync(DiagnosticsView);
@@ -504,6 +572,7 @@ public partial class MainWindow : Window
         SetupView.Visibility = Visibility.Collapsed;
         DiagnosticsView.Visibility = Visibility.Collapsed;
         InfoView.Visibility = Visibility.Collapsed;
+        SettingsView.Visibility = Visibility.Collapsed;
 
         _activeUtilityView = view;
         view.Opacity = 0;
@@ -1418,6 +1487,8 @@ public partial class MainWindow : Window
             psi.ArgumentList.Add("-listen");
             psi.ArgumentList.Add($"127.0.0.1:{_localRelayPort}");
             psi.ArgumentList.Add("-routes");
+            if (_advancedCaptchaEnabled)
+                psi.ArgumentList.Add("-advanced-captcha");
             psi.ArgumentList.Add(uri);
 
             _freeTurn = new Process { StartInfo = psi, EnableRaisingEvents = true };

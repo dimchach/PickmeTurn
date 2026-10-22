@@ -124,8 +124,3 @@ https://github.com/WireGuard/wireguard-windows
 ### License
 
 PickmeTurn's own source code is released under the MIT License. The full text is available in `LICENSE`. Third-party components retain their respective licenses.
-
-
-### Advanced CAPTCHA (сборка PickmeTurn)
-
-В меню настроек (значок шестерёнки на главном экране) можно включить расширенный алгоритм автоматического решения CAPTCHA. Настройка хранится в `%LOCALAPPDATA%\PickmeTurn\settings.json` и передаётся ядру при следующем подключении. Скрипт `build.ps1` скачивает исходники FreeTurn v4.1.0, добавляет флаг `-advanced-captcha`, собирает ядро Go и затем публикует WPF-приложение.

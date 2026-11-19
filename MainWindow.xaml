@@ -465,7 +465,7 @@
                                HorizontalAlignment="Center"/>
                     <TextBlock x:Name="InfoVersionText" Foreground="{StaticResource Muted}"
                                Margin="0,6,0,0" HorizontalAlignment="Center"/>
-                    <TextBlock Text="FreeTurn Core 4.1.0" Foreground="{StaticResource Muted}"
+                    <TextBlock Text="FreeTurn Core 4.2.0" Foreground="{StaticResource Muted}"
                                Margin="0,2,0,0" HorizontalAlignment="Center"/>
 
                     <TextBlock Foreground="{StaticResource Muted}" Margin="0,22,0,0"
@@ -510,7 +510,7 @@
                 </StackPanel>
             </Grid>
             <StackPanel Grid.Row="1" Margin="28,18,28,0" VerticalAlignment="Top">
-                <CheckBox x:Name="AdvancedCaptchaCheckBox" IsChecked="False"
+                <CheckBox x:Name="AdvancedCaptchaCheckBox" IsChecked="True"
                           Click="AdvancedCaptchaCheckBox_Changed"
                           Foreground="{StaticResource Text}" FontSize="14" FontWeight="SemiBold"
                           Content="Расширенное решение CAPTCHA"/>

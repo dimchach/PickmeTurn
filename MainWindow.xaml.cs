@@ -520,12 +520,12 @@ public partial class MainWindow : Window
             {
                 using var stream = File.OpenRead(_settingsPath);
                 var settings = JsonSerializer.Deserialize<AppSettings>(stream);
-                _advancedCaptchaEnabled = settings?.AdvancedCaptcha ?? false;
+                _advancedCaptchaEnabled = settings?.AdvancedCaptcha ?? true;
             }
         }
         catch
         {
-            _advancedCaptchaEnabled = false;
+            _advancedCaptchaEnabled = true;
         }
     }
 

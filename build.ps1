@@ -1,9 +1,9 @@
 ﻿$ErrorActionPreference = "Stop"
-Write-Host "== PickmeTurn 1.2.6 + FreeTurn 4.1.0 Advanced CAPTCHA build ==" -ForegroundColor Cyan
+Write-Host "== PickmeTurn 1.2.7 + FreeTurn 4.2.0 Advanced CAPTCHA build ==" -ForegroundColor Cyan
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $assets = Join-Path $root "Assets"
-$coreVersion = "4.1.0"
+$coreVersion = "4.2.0"
 $coreArchive = Join-Path $env:TEMP "free-turn-proxy-v$coreVersion.zip"
 $coreExtract = Join-Path $env:TEMP "free-turn-proxy-v$coreVersion-PickmeTurn"
 $coreUrl = "https://github.com/hackdiaz-dev/free-turn-proxy/archive/refs/tags/v$coreVersion.zip"
@@ -50,7 +50,7 @@ Expand-Archive -Path $coreArchive -DestinationPath $coreExtract -Force
 $repo = Get-ChildItem $coreExtract -Directory | Select-Object -First 1
 if (-not $repo) { throw "Could not locate extracted FreeTurn source." }
 
-# Add a real CLI flag to upstream v4.1.0 so the UI toggle controls the existing AdvancedCaptcha config.
+# Add a real CLI flag to upstream v4.2.0 so the UI toggle controls the existing AdvancedCaptcha config.
 $flagsPath = Join-Path $repo.FullName "internal\config\cliflags.go"
 if (-not (Test-Path $flagsPath)) { throw "FreeTurn source layout changed: internal\config\cliflags.go was not found." }
 $flags = Get-Content $flagsPath -Raw
@@ -72,7 +72,7 @@ if ($flags.Contains('"advanced-captcha"')) {
 Write-Host "Building patched FreeTurn core..." -ForegroundColor Cyan
 Push-Location $repo.FullName
 try {
-  & $goExe build -trimpath -ldflags "-s -w -X main.version=4.1.0-pickmeturn" -o (Join-Path $assets "client-windows-amd64.exe") ./cmd/client
+  & $goExe build -trimpath -ldflags "-s -w -X main.version=4.2.0-pickmeturn" -o (Join-Path $assets "client-windows-amd64.exe") ./cmd/client
   if ($LASTEXITCODE -ne 0) { throw "FreeTurn core build failed (exit code $LASTEXITCODE)." }
 } finally { Pop-Location }
 
